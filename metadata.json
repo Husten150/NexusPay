@@ -1,0 +1,6 @@
+{
+  "name": "NexusPay AI - Web3 Agent & Smart Treasury",
+  "description": "Autonomous Web3 financial infrastructure & AI agent for payment streaming, intelligent invoice settlement, cross-border remittance, and transaction safety auditing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
