@@ -29,6 +29,8 @@ import { CrossBorderRemittance } from './components/CrossBorderRemittance';
 import { TreasuryYieldOptimizer } from './components/TreasuryYieldOptimizer';
 import { SecurityContractAuditor } from './components/SecurityContractAuditor';
 import { WalletModal } from './components/WalletModal';
+import { TransferModal } from './components/TransferModal';
+import { ReceiveModal } from './components/ReceiveModal';
 
 import { 
   LayoutDashboard, 
@@ -37,9 +39,7 @@ import {
   Globe, 
   PiggyBank, 
   ShieldCheck, 
-  Bot, 
-  Check, 
-  Info
+  Check
 } from 'lucide-react';
 
 export default function App() {
@@ -48,6 +48,8 @@ export default function App() {
   
   // Modals
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Persistent States
@@ -77,14 +79,18 @@ export default function App() {
     showToast(`Switched Web3 Network to ${chain}`);
   };
 
-  const handleConnectWallet = (type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom') => {
+  const handleConnectWallet = (
+    type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3', 
+    customAddress?: string
+  ) => {
+    const addressToSet = customAddress || (type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
     setWallet((prev) => ({
       ...prev,
       walletType: type,
       isConnected: true,
-      address: type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+      address: addressToSet,
     }));
-    showToast(`Connected ${type} Wallet`);
+    showToast(`Connected & Integrated Wallet Address: ${addressToSet.slice(0, 8)}...`);
   };
 
   const handleTopUpFaucet = () => {
@@ -99,11 +105,66 @@ export default function App() {
     showToast('claimed +10,000 USDC Testnet Faucet tokens!');
   };
 
+  // Transfer execution handler
+  const handleCompleteTransfer = (amount: number, token: string, recipient: string, txHash: string) => {
+    setWallet((prev) => ({
+      ...prev,
+      balanceUsd: Math.max(0, prev.balanceUsd - amount),
+      tokenBalances: {
+        ...prev.tokenBalances,
+        [token]: Math.max(0, (prev.tokenBalances[token as keyof typeof prev.tokenBalances] || 0) - amount),
+      },
+    }));
+
+    const newLog: TransactionAuditLog = {
+      id: `log-${Date.now().toString().slice(-4)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      txHash,
+      type: 'REMITTANCE',
+      summary: `Real-time Transfer Sent: ${amount} ${token} to ${recipient}`,
+      amountUsd: amount,
+      chain: wallet.chain,
+      status: 'CONFIRMED',
+      gasFeeUsd: 0.008,
+      aiRiskLevel: 'SAFE',
+    };
+
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(`Transferred ${amount} ${token} on-chain!`);
+  };
+
+  // Receive funds callback
+  const handleReceiveFunds = (amount: number, token: string, sender: string) => {
+    setWallet((prev) => ({
+      ...prev,
+      balanceUsd: prev.balanceUsd + amount,
+      tokenBalances: {
+        ...prev.tokenBalances,
+        [token]: (prev.tokenBalances[token as keyof typeof prev.tokenBalances] || 0) + amount,
+      },
+    }));
+
+    const newLog: TransactionAuditLog = {
+      id: `log-${Date.now().toString().slice(-4)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      txHash: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
+      type: 'INVOICE_PAYMENT',
+      summary: `Real-time Payment Received: +${amount} ${token} from ${sender}`,
+      amountUsd: amount,
+      chain: wallet.chain,
+      status: 'CONFIRMED',
+      gasFeeUsd: 0.004,
+      aiRiskLevel: 'SAFE',
+    };
+
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(`Received +${amount} ${token} in real time!`);
+  };
+
   // Stream Handlers
   const handleAddStream = (newStream: PaymentStream) => {
     setStreams((prev) => [newStream, ...prev]);
     
-    // Add audit log
     const newLog: TransactionAuditLog = {
       id: `log-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
@@ -137,7 +198,6 @@ export default function App() {
     setInvoices((prev) =>
       prev.map((inv) => {
         if (inv.id === id) {
-          // Increase wallet balance
           setWallet((w) => ({
             ...w,
             balanceUsd: w.balanceUsd + inv.totalUsd,
@@ -217,6 +277,9 @@ export default function App() {
       };
       handleAddStream(newStream);
       setActiveTab('streams');
+    } else if (intent.actionType === 'INSTANT_TRANSFER') {
+      setShowTransferModal(true);
+      showToast('AI Agent opened Transfer modal');
     } else if (intent.actionType === 'CREATE_INVOICE') {
       const sub = intent.parameters.amount || 2500;
       const newInv: MerchantInvoice = {
@@ -267,29 +330,14 @@ export default function App() {
       <Navbar
         wallet={wallet}
         onOpenWalletModal={() => setShowWalletModal(true)}
+        onOpenTransferModal={() => setShowTransferModal(true)}
+        onOpenReceiveModal={() => setShowReceiveModal(true)}
         onSelectChain={handleSelectChain}
         agentActive={true}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         
-        {/* Track Header Banner */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 my-2">
-          <div className="flex items-center gap-3">
-            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs uppercase tracking-wider shadow-sm">
-              Hackathon Entry
-            </span>
-            <div className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-              <strong>Track 1:</strong> Payments & Infrastructure • <strong>Track 2:</strong> Web3 AI Agents & Real-World Use
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>EVM / L2 Multi-Chain Enabled</span>
-          </div>
-        </div>
-
         {/* Persistent AI Command Center Bar */}
         <AgentCommandCenter
           wallet={wallet}
@@ -439,6 +487,22 @@ export default function App() {
         wallet={wallet}
         onConnectWallet={handleConnectWallet}
         onTopUpFaucet={handleTopUpFaucet}
+      />
+
+      {/* Real-time Transfer Money Modal */}
+      <TransferModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        wallet={wallet}
+        onCompleteTransfer={handleCompleteTransfer}
+      />
+
+      {/* Real-time Receive Money Modal */}
+      <ReceiveModal
+        isOpen={showReceiveModal}
+        onClose={() => setShowReceiveModal(false)}
+        wallet={wallet}
+        onReceiveFunds={handleReceiveFunds}
       />
 
     </div>

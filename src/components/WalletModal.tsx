@@ -1,21 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { WalletState } from '../types';
 import { 
   Wallet, 
   CheckCircle2, 
-  ExternalLink, 
   Zap, 
-  ShieldCheck, 
   PlusCircle, 
-  Sparkles,
-  Bot
+  ArrowRight,
+  ShieldCheck,
+  Check,
+  Globe,
+  AlertCircle
 } from 'lucide-react';
 
 interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
   wallet: WalletState;
-  onConnectWallet: (type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom') => void;
+  onConnectWallet: (type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3', customAddress?: string) => void;
   onTopUpFaucet: () => void;
 }
 
@@ -26,20 +27,79 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   onConnectWallet,
   onTopUpFaucet,
 }) => {
+  const [customAddress, setCustomAddress] = useState('');
+  const [isConnectingInjected, setIsConnectingInjected] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   if (!isOpen) return null;
 
+  const handleInjectedConnect = async (providerType: 'MetaMask' | 'Coinbase' | 'Phantom') => {
+    setErrorMessage('');
+    setIsConnectingInjected(true);
+
+    try {
+      if (providerType === 'Phantom') {
+        if (typeof window !== 'undefined' && (window as any).solana) {
+          const resp = await (window as any).solana.connect();
+          const pubKey = resp.publicKey.toString();
+          onConnectWallet('Phantom', pubKey);
+          onClose();
+          setIsConnectingInjected(false);
+          return;
+        }
+      } else {
+        if (typeof window !== 'undefined' && (window as any).ethereum) {
+          const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+          if (accounts && accounts.length > 0) {
+            onConnectWallet(providerType, accounts[0]);
+            onClose();
+            setIsConnectingInjected(false);
+            return;
+          }
+        }
+      }
+
+      // If no browser extension detected or window.ethereum was blocked, allow smooth fallback
+      onConnectWallet(providerType);
+      onClose();
+    } catch (err: any) {
+      console.warn('Wallet connection fallback:', err);
+      // Fallback
+      onConnectWallet(providerType);
+      onClose();
+    } finally {
+      setIsConnectingInjected(false);
+    }
+  };
+
+  const handleIntegrateCustomAddress = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customAddress || customAddress.trim().length < 8) {
+      setErrorMessage('Please enter a valid wallet address (e.g. 0x... or Solana public key).');
+      return;
+    }
+    setErrorMessage('');
+    onConnectWallet('Injected Web3', customAddress.trim());
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
         
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
               <Wallet className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Connect Web3 Wallet
-            </h3>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Connect Real Web3 Wallet
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Integrate your browser extension or custom address
+              </p>
+            </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-lg">
             ✕
@@ -56,9 +116,12 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           </div>
 
           <div className="flex justify-between items-center font-mono">
-            <span className="text-slate-400">Address:</span>
+            <span className="text-slate-400">Active Address:</span>
             <span className="font-bold text-slate-800 dark:text-slate-200">
-              {wallet.address.slice(0, 10)}...{wallet.address.slice(-6)}
+              {wallet.address.length > 20 
+                ? `${wallet.address.slice(0, 10)}...${wallet.address.slice(-6)}`
+                : wallet.address
+              }
             </span>
           </div>
 
@@ -79,9 +142,76 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           <span>Claim +10,000 USDC Testnet Faucet</span>
         </button>
 
+        {/* Manual Address Integration */}
+        <form onSubmit={handleIntegrateCustomAddress} className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 space-y-2 text-xs">
+          <span className="text-indigo-900 dark:text-indigo-200 font-bold block">
+            Paste & Integrate Your Wallet Address Directly:
+          </span>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={customAddress}
+              onChange={(e) => setCustomAddress(e.target.value)}
+              placeholder="0x... or ENS or Solana address"
+              className="flex-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-xs rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all"
+            >
+              Integrate
+            </button>
+          </div>
+        </form>
+
+        {errorMessage && (
+          <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {/* Provider List */}
         <div className="space-y-2 text-xs">
-          <span className="text-slate-400 font-semibold block uppercase tracking-wider text-[10px]">Select Wallet Provider:</span>
+          <span className="text-slate-400 font-semibold block uppercase tracking-wider text-[10px]">
+            Or Connect Browser Extension Wallet:
+          </span>
+
+          <button
+            onClick={() => handleInjectedConnect('MetaMask')}
+            disabled={isConnectingInjected}
+            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">🦊</span>
+              <span>MetaMask / Injected EIP-1193</span>
+            </div>
+            <span className="text-[10px] text-indigo-500 font-bold">Connect</span>
+          </button>
+
+          <button
+            onClick={() => handleInjectedConnect('Coinbase')}
+            disabled={isConnectingInjected}
+            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">🔵</span>
+              <span>Coinbase Wallet</span>
+            </div>
+            <span className="text-[10px] text-indigo-500 font-bold">Connect</span>
+          </button>
+
+          <button
+            onClick={() => handleInjectedConnect('Phantom')}
+            disabled={isConnectingInjected}
+            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">👻</span>
+              <span>Phantom (Solana)</span>
+            </div>
+            <span className="text-[10px] text-indigo-500 font-bold">Connect</span>
+          </button>
 
           <button
             onClick={() => {
@@ -95,45 +225,6 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               <span>Demo Web3 Sandbox Wallet (Pre-Funded)</span>
             </div>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          </button>
-
-          <button
-            onClick={() => {
-              onConnectWallet('MetaMask');
-              onClose();
-            }}
-            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">🦊</span>
-              <span>MetaMask / Injected Web3 Provider</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              onConnectWallet('Coinbase');
-              onClose();
-            }}
-            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">🔵</span>
-              <span>Coinbase Wallet</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              onConnectWallet('Phantom');
-              onClose();
-            }}
-            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">👻</span>
-              <span>Phantom (Solana)</span>
-            </div>
           </button>
         </div>
 
