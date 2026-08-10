@@ -150,7 +150,7 @@ export default function App() {
   };
 
   const handleConnectWallet = async (
-    type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3', 
+    type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3', 
     customAddress?: string
   ) => {
     let addressToSet = customAddress || '';
@@ -167,7 +167,7 @@ export default function App() {
     }
 
     if (!addressToSet) {
-      addressToSet = type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+      addressToSet = type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : type === 'Stellar Wallet (Freighter)' ? 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGUQ2EWKWF4X36S5L33X' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
     }
 
     setWallet((prev) => ({

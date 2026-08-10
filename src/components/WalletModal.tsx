@@ -16,7 +16,7 @@ interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
   wallet: WalletState;
-  onConnectWallet: (type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3', customAddress?: string) => void;
+  onConnectWallet: (type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3', customAddress?: string) => void;
   onDisconnectWallet?: () => void;
   onTopUpFaucet: () => void;
 }
@@ -35,12 +35,39 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleInjectedConnect = async (providerType: 'MetaMask' | 'Coinbase' | 'Phantom') => {
+  const handleInjectedConnect = async (providerType: 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar') => {
     setErrorMessage('');
     setIsConnectingInjected(true);
 
     try {
-      if (providerType === 'Phantom') {
+      if (providerType === 'Stellar') {
+        if (typeof window !== 'undefined' && ((window as any).freighterApi || (window as any).freighter || (window as any).stellar)) {
+          try {
+            const freighter = (window as any).freighterApi || (window as any).freighter || (window as any).stellar;
+            let pubKey = '';
+            if (typeof freighter.getPublicKey === 'function') {
+              pubKey = await freighter.getPublicKey();
+            } else if (typeof freighter.request === 'function') {
+              const res = await freighter.request({ method: 'getPublicKey' });
+              pubKey = res?.publicKey || res;
+            }
+            if (pubKey) {
+              onConnectWallet('Stellar Wallet (Freighter)', pubKey);
+              onClose();
+              setIsConnectingInjected(false);
+              return;
+            }
+          } catch (stErr: any) {
+            setErrorMessage(`Stellar wallet error: ${stErr.message || 'Connection rejected.'}`);
+            setIsConnectingInjected(false);
+            return;
+          }
+        } else {
+          setErrorMessage('Freighter/Stellar wallet extension not detected. You can paste your Stellar public key (G...) directly in the input box above!');
+          setIsConnectingInjected(false);
+          return;
+        }
+      } else if (providerType === 'Phantom') {
         if (typeof window !== 'undefined' && (window as any).solana?.isPhantom) {
           const resp = await (window as any).solana.connect();
           const pubKey = resp.publicKey.toString();
@@ -281,6 +308,18 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             <div className="flex items-center gap-2.5">
               <span className="text-base">👻</span>
               <span>Phantom (Solana)</span>
+            </div>
+            <span className="text-[10px] text-indigo-500 font-bold">Connect</span>
+          </button>
+
+          <button
+            onClick={() => handleInjectedConnect('Stellar')}
+            disabled={isConnectingInjected}
+            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300 transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">🚀</span>
+              <span>Stellar Wallet (Freighter / Lobstr)</span>
             </div>
             <span className="text-[10px] text-indigo-500 font-bold">Connect</span>
           </button>

@@ -8,13 +8,14 @@ export type SupportedChain =
   | 'BNB Chain' 
   | 'Avalanche' 
   | 'Tron' 
-  | 'Bitcoin Network';
+  | 'Bitcoin Network'
+  | 'Stellar Network';
 
 export interface WalletState {
   address: string;
   chain: SupportedChain;
   isConnected: boolean;
-  walletType: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3';
+  walletType: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3';
   balanceUsd: number;
   tokenBalances: Record<string, number>;
 }

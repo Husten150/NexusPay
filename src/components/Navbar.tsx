@@ -30,6 +30,7 @@ const CHAINS: { name: SupportedChain; icon: string; color: string; gasGwei: numb
   { name: 'Avalanche', icon: '🔺', color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20', gasGwei: 25.0 },
   { name: 'Tron', icon: '🔴', color: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', gasGwei: 1.0 },
   { name: 'Bitcoin Network', icon: '🟠', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20', gasGwei: 15.0 },
+  { name: 'Stellar Network', icon: '🚀', color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20', gasGwei: 0.00001 },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({

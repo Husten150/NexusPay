@@ -106,6 +106,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
               <option value="Avalanche">Avalanche C-Chain</option>
               <option value="Tron">Tron Network</option>
               <option value="Bitcoin Network">Bitcoin Network</option>
+              <option value="Stellar Network">Stellar Network (XLM)</option>
             </select>
           </div>
 

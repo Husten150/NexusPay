@@ -17,6 +17,7 @@ export const ALL_COINS: CoinInfo[] = [
   { symbol: 'PYUSD', name: 'PayPal USD', icon: '🅿️', category: 'Stablecoin', priceUsd: 1.00, primaryNetwork: 'Ethereum / Solana', decimals: 6, autoSwapSupported: true },
 
   // Native Layer 1s
+  { symbol: 'XLM', name: 'Stellar Lumens', icon: '🚀', category: 'Native Layer 1', priceUsd: 0.11, primaryNetwork: 'Stellar Network', decimals: 7, autoSwapSupported: true },
   { symbol: 'BTC', name: 'Bitcoin', icon: '🟠', category: 'Native Layer 1', priceUsd: 64200.00, primaryNetwork: 'Bitcoin Network', decimals: 8, autoSwapSupported: true },
   { symbol: 'ETH', name: 'Ethereum', icon: '🔷', category: 'Native Layer 1', priceUsd: 2700.00, primaryNetwork: 'Ethereum', decimals: 18, autoSwapSupported: true },
   { symbol: 'SOL', name: 'Solana', icon: '🟣', category: 'Native Layer 1', priceUsd: 145.00, primaryNetwork: 'Solana', decimals: 9, autoSwapSupported: true },
