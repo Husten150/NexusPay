@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { WalletState, SupportedChain, TransactionAuditLog } from '../types';
+import { ALL_COINS, getCoinInfo } from '../data/coinCatalog';
 import { 
   Send, 
   ArrowRight, 
@@ -29,7 +30,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 }) => {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('100');
-  const [selectedToken, setSelectedToken] = useState<'USDC' | 'ETH' | 'USDT' | 'MATIC' | 'SOL'>('USDC');
+  const [selectedToken, setSelectedToken] = useState<string>('USDC');
   const [note, setNote] = useState('');
 
   // Transaction execution state
@@ -191,14 +192,14 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 </label>
                 <select
                   value={selectedToken}
-                  onChange={(e) => setSelectedToken(e.target.value as any)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold rounded-xl px-3 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onChange={(e) => setSelectedToken(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold rounded-xl px-2 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                 >
-                  <option value="USDC">USDC</option>
-                  <option value="ETH">ETH</option>
-                  <option value="USDT">USDT</option>
-                  <option value="MATIC">MATIC</option>
-                  <option value="SOL">SOL</option>
+                  {ALL_COINS.map((c) => (
+                    <option key={c.symbol} value={c.symbol}>
+                      {c.icon} {c.symbol}
+                    </option>
+                  ))}
                 </select>
               </div>
 

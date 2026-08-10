@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WalletState, SupportedChain } from '../types';
+import { ALL_COINS } from '../data/coinCatalog';
 import { 
   ArrowDownLeft, 
   Copy, 
@@ -29,7 +30,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(wallet.chain);
-  const [selectedToken, setSelectedToken] = useState<'USDC' | 'ETH' | 'USDT' | 'MATIC' | 'SOL'>('USDC');
+  const [selectedToken, setSelectedToken] = useState<string>('USDC');
   
   // Simulation for live socket incoming payment test
   const [simulatingIncoming, setSimulatingIncoming] = useState(false);
@@ -101,23 +102,27 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
               <option value="Arbitrum">Arbitrum One</option>
               <option value="Optimism">Optimism</option>
               <option value="Solana">Solana Network</option>
+              <option value="BNB Chain">BNB Chain (BSC)</option>
+              <option value="Avalanche">Avalanche C-Chain</option>
+              <option value="Tron">Tron Network</option>
+              <option value="Bitcoin Network">Bitcoin Network</option>
             </select>
           </div>
 
           <div>
             <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1 text-[10px] uppercase">
-              Requested Asset
+              Requested Asset (Any Coin)
             </label>
             <select
               value={selectedToken}
-              onChange={(e) => setSelectedToken(e.target.value as any)}
+              onChange={(e) => setSelectedToken(e.target.value)}
               className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-700 focus:outline-none"
             >
-              <option value="USDC">USDC Stablecoin</option>
-              <option value="ETH">ETH (Ethereum)</option>
-              <option value="USDT">USDT Tether</option>
-              <option value="MATIC">MATIC / POL</option>
-              <option value="SOL">SOL (Solana)</option>
+              {ALL_COINS.map((c) => (
+                <option key={c.symbol} value={c.symbol}>
+                  {c.icon} {c.symbol} - {c.name} (${c.priceUsd < 0.01 ? c.priceUsd.toFixed(6) : c.priceUsd.toLocaleString()})
+                </option>
+              ))}
             </select>
           </div>
         </div>

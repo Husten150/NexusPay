@@ -39,34 +39,71 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
     try {
       if (providerType === 'Phantom') {
-        if (typeof window !== 'undefined' && (window as any).solana) {
+        if (typeof window !== 'undefined' && (window as any).solana?.isPhantom) {
           const resp = await (window as any).solana.connect();
           const pubKey = resp.publicKey.toString();
           onConnectWallet('Phantom', pubKey);
           onClose();
           setIsConnectingInjected(false);
           return;
+        } else {
+          setErrorMessage('Phantom extension not detected. If on mobile, open this URL inside Phantom App Browser, or paste your address above.');
+          setIsConnectingInjected(false);
+          return;
         }
       } else {
-        if (typeof window !== 'undefined' && (window as any).ethereum) {
-          const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+        if (typeof window === 'undefined') {
+          setErrorMessage('Window context unavailable.');
+          setIsConnectingInjected(false);
+          return;
+        }
+
+        let ethereumProvider = (window as any).ethereum;
+
+        // Handle multiple injected providers (Coinbase + MetaMask co-existing)
+        if (ethereumProvider?.providers?.length) {
+          if (providerType === 'MetaMask') {
+            ethereumProvider = ethereumProvider.providers.find((p: any) => p.isMetaMask) || ethereumProvider;
+          } else if (providerType === 'Coinbase') {
+            ethereumProvider = ethereumProvider.providers.find((p: any) => p.isCoinbaseWallet) || ethereumProvider;
+          }
+        }
+
+        if (!ethereumProvider) {
+          setErrorMessage(
+            'MetaMask extension not found in this browser. ' +
+            'If you are on mobile, open this site inside the MetaMask App Browser. ' +
+            'Or paste your address directly in the input box above!'
+          );
+          setIsConnectingInjected(false);
+          return;
+        }
+
+        try {
+          const accounts = await ethereumProvider.request({ method: 'eth_requestAccounts' });
           if (accounts && accounts.length > 0) {
             onConnectWallet(providerType, accounts[0]);
             onClose();
             setIsConnectingInjected(false);
             return;
+          } else {
+            setErrorMessage('No accounts returned from wallet.');
           }
+        } catch (reqErr: any) {
+          if (reqErr.code === -32002) {
+            setErrorMessage('MetaMask has a pending request! Please click the orange Fox icon in your browser extension bar to approve.');
+          } else if (reqErr.code === 4001) {
+            setErrorMessage('Connection request was rejected in MetaMask.');
+          } else {
+            setErrorMessage(`MetaMask error: ${reqErr.message || 'Failed to connect.'}`);
+          }
+          setIsConnectingInjected(false);
+          return;
         }
       }
-
-      // If no browser extension detected or window.ethereum was blocked, allow smooth fallback
-      onConnectWallet(providerType);
-      onClose();
     } catch (err: any) {
-      console.warn('Wallet connection fallback:', err);
-      // Fallback
-      onConnectWallet(providerType);
-      onClose();
+      console.warn('Wallet connection error:', err);
+      setErrorMessage(`Could not connect: ${err.message || 'Unknown error'}`);
     } finally {
       setIsConnectingInjected(false);
     }

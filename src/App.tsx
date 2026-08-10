@@ -19,6 +19,7 @@ import {
   loadSavedState, 
   saveState 
 } from './data/mockWeb3State';
+import { getCoinInfo } from './data/coinCatalog';
 
 import { Navbar } from './components/Navbar';
 import { AgentCommandCenter } from './components/AgentCommandCenter';
@@ -107,12 +108,15 @@ export default function App() {
 
   // Transfer execution handler
   const handleCompleteTransfer = (amount: number, token: string, recipient: string, txHash: string) => {
+    const coinInfo = getCoinInfo(token);
+    const usdEquivalent = amount * coinInfo.priceUsd;
+
     setWallet((prev) => ({
       ...prev,
-      balanceUsd: Math.max(0, prev.balanceUsd - amount),
+      balanceUsd: Math.max(0, prev.balanceUsd - usdEquivalent),
       tokenBalances: {
         ...prev.tokenBalances,
-        [token]: Math.max(0, (prev.tokenBalances[token as keyof typeof prev.tokenBalances] || 0) - amount),
+        [token]: Math.max(0, (prev.tokenBalances[token] || 0) - amount),
       },
     }));
 
@@ -121,8 +125,8 @@ export default function App() {
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
       txHash,
       type: 'REMITTANCE',
-      summary: `Real-time Transfer Sent: ${amount} ${token} to ${recipient}`,
-      amountUsd: amount,
+      summary: `Real-time Transfer Sent: ${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) to ${recipient}`,
+      amountUsd: usdEquivalent,
       chain: wallet.chain,
       status: 'CONFIRMED',
       gasFeeUsd: 0.008,
@@ -135,12 +139,15 @@ export default function App() {
 
   // Receive funds callback
   const handleReceiveFunds = (amount: number, token: string, sender: string) => {
+    const coinInfo = getCoinInfo(token);
+    const usdEquivalent = amount * coinInfo.priceUsd;
+
     setWallet((prev) => ({
       ...prev,
-      balanceUsd: prev.balanceUsd + amount,
+      balanceUsd: prev.balanceUsd + usdEquivalent,
       tokenBalances: {
         ...prev.tokenBalances,
-        [token]: (prev.tokenBalances[token as keyof typeof prev.tokenBalances] || 0) + amount,
+        [token]: (prev.tokenBalances[token] || 0) + amount,
       },
     }));
 
@@ -149,8 +156,8 @@ export default function App() {
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
       txHash: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
       type: 'INVOICE_PAYMENT',
-      summary: `Real-time Payment Received: +${amount} ${token} from ${sender}`,
-      amountUsd: amount,
+      summary: `Real-time Payment Received: +${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) from ${sender}`,
+      amountUsd: usdEquivalent,
       chain: wallet.chain,
       status: 'CONFIRMED',
       gasFeeUsd: 0.004,

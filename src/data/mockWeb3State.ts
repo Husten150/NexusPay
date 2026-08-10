@@ -5,14 +5,29 @@ export const INITIAL_WALLET: WalletState = {
   chain: 'Polygon',
   isConnected: true,
   walletType: 'Simulated Sandbox',
-  balanceUsd: 184520.50,
+  balanceUsd: 312850.50,
   tokenBalances: {
     USDC: 125400.00,
-    ETH: 18.5, // ~$49,950
-    USDT: 8500.00,
-    MATIC: 12000.00,
-    SOL: 45.0,
-    UNI: 650.0,
+    BTC: 1.25,        // ~$80,250
+    ETH: 18.5,        // ~$49,950
+    USDT: 12500.00,
+    SOL: 85.0,        // ~$12,325
+    BNB: 15.0,        // ~$7,800
+    MATIC: 15000.00,  // ~$6,750
+    XRP: 8500.00,     // ~$4,930
+    ADA: 12000.00,    // ~$4,320
+    AVAX: 180.0,      // ~$4,050
+    TRX: 25000.00,    // ~$3,250
+    DOGE: 35000.00,   // ~$3,500
+    TON: 450.0,       // ~$2,610
+    SUI: 2500.0,      // ~$2,300
+    NEAR: 600.0,      // ~$2,520
+    DAI: 5000.00,
+    PYUSD: 2500.00,
+    LINK: 450.0,      // ~$5,175
+    UNI: 650.0,       // ~$4,420
+    SHIB: 150000000,  // ~$2,100
+    PEPE: 250000000,  // ~$2,000
   },
 };
 

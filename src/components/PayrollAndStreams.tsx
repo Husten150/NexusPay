@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PaymentStream, WalletState } from '../types';
+import { ALL_COINS } from '../data/coinCatalog';
 import { 
   Play, 
   Pause, 
@@ -37,7 +38,7 @@ export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
   const [recipientName, setRecipientName] = useState('');
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState('5000');
-  const [token, setToken] = useState<'USDC' | 'USDT' | 'ETH' | 'MATIC'>('USDC');
+  const [token, setToken] = useState<string>('USDC');
   const [frequency, setFrequency] = useState<'realtime' | 'daily' | 'weekly' | 'monthly'>('monthly');
   const [category, setCategory] = useState<'ENGINEERING_PAYROLL' | 'FREELANCER' | 'SAAS_SUBSCRIPTION' | 'GRANT_DISBURSEMENT'>('ENGINEERING_PAYROLL');
 
@@ -304,12 +305,13 @@ export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
                     <select
                       value={token}
                       onChange={(e: any) => setToken(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-xl px-2.5 py-2 border border-slate-300 dark:border-slate-700"
+                      className="bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-xl px-2.5 py-2 border border-slate-300 dark:border-slate-700 text-xs"
                     >
-                      <option value="USDC">USDC</option>
-                      <option value="USDT">USDT</option>
-                      <option value="ETH">ETH</option>
-                      <option value="MATIC">MATIC</option>
+                      {ALL_COINS.map((c) => (
+                        <option key={c.symbol} value={c.symbol}>
+                          {c.icon} {c.symbol}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

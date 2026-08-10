@@ -1,4 +1,14 @@
-export type SupportedChain = 'Ethereum' | 'Polygon' | 'Base' | 'Arbitrum' | 'Solana' | 'Optimism';
+export type SupportedChain = 
+  | 'Ethereum' 
+  | 'Polygon' 
+  | 'Base' 
+  | 'Arbitrum' 
+  | 'Solana' 
+  | 'Optimism' 
+  | 'BNB Chain' 
+  | 'Avalanche' 
+  | 'Tron' 
+  | 'Bitcoin Network';
 
 export interface WalletState {
   address: string;
@@ -6,14 +16,7 @@ export interface WalletState {
   isConnected: boolean;
   walletType: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3';
   balanceUsd: number;
-  tokenBalances: {
-    USDC: number;
-    ETH: number;
-    USDT: number;
-    MATIC: number;
-    SOL: number;
-    UNI: number;
-  };
+  tokenBalances: Record<string, number>;
 }
 
 export interface PaymentStream {
@@ -21,7 +24,7 @@ export interface PaymentStream {
   recipientName: string;
   recipientAddress: string;
   amount: number;
-  token: 'USDC' | 'USDT' | 'ETH' | 'MATIC';
+  token: string; // Accepts any coin (USDC, BTC, ETH, SOL, BNB, DOGE, etc.)
   frequency: 'realtime' | 'daily' | 'weekly' | 'monthly';
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
   totalPaidUsd: number;
@@ -51,7 +54,8 @@ export interface MerchantInvoice {
   subtotalUsd: number;
   taxUsd: number;
   totalUsd: number;
-  paymentToken: 'USDC' | 'USDT' | 'ETH' | 'MATIC' | 'SOL';
+  paymentToken: string; // Accepts any coin (BTC, ETH, USDC, USDT, SOL, BNB, XRP, DOGE, etc.)
+  autoSwapToUsdc?: boolean; // Option to auto-settle any coin directly into USDC
   status: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
   dueDate: string;
   createdAt: string;

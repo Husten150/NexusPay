@@ -26,6 +26,10 @@ const CHAINS: { name: SupportedChain; icon: string; color: string; gasGwei: numb
   { name: 'Arbitrum', icon: '🟦', color: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20', gasGwei: 0.1 },
   { name: 'Solana', icon: '🟣', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', gasGwei: 0.0005 },
   { name: 'Optimism', icon: '🔴', color: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', gasGwei: 0.02 },
+  { name: 'BNB Chain', icon: '🟡', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', gasGwei: 3.0 },
+  { name: 'Avalanche', icon: '🔺', color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20', gasGwei: 25.0 },
+  { name: 'Tron', icon: '🔴', color: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', gasGwei: 1.0 },
+  { name: 'Bitcoin Network', icon: '🟠', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20', gasGwei: 15.0 },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({

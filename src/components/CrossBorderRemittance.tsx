@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { RemittanceQuote, WalletState, SupportedChain } from '../types';
+import { ALL_COINS, getCoinInfo } from '../data/coinCatalog';
 import { 
   Globe, 
   ArrowRight, 
@@ -74,6 +75,7 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
   onExecuteRemittance,
 }) => {
   const [sourceAmount, setSourceAmount] = useState('1000');
+  const [selectedSourceCoin, setSelectedSourceCoin] = useState<string>('USDC');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegion, setSelectedRegion] = useState<string>('ALL');
   const [selectedCountry, setSelectedCountry] = useState<CountryData>(GLOBAL_COUNTRIES[11]); // Kenya default
@@ -90,8 +92,11 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
     return matchesRegion && matchesQuery;
   });
 
-  const srcVal = parseFloat(sourceAmount) || 0;
-  const estimatedTarget = srcVal * selectedCountry.rate;
+  const coinInfo = getCoinInfo(selectedSourceCoin);
+  const srcQty = parseFloat(sourceAmount) || 0;
+  const srcVal = srcQty;
+  const srcUsdVal = srcQty * coinInfo.priceUsd;
+  const estimatedTarget = srcUsdVal * selectedCountry.rate;
   const web3Fee = 0.15;
   const tradFee = selectedCountry.bankFee;
   const savings = Math.max(0, tradFee - web3Fee);
@@ -99,9 +104,9 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
   const handleSendRemittance = () => {
     const newQuote: RemittanceQuote = {
       id: `rem-${Date.now().toString().slice(-4)}`,
-      sourceCurrency: 'USD (USDC)',
+      sourceCurrency: `${selectedSourceCoin}`,
       targetCurrency: `${selectedCountry.currency} (${selectedCountry.railType})`,
-      sourceAmount: srcVal,
+      sourceAmount: srcQty,
       targetAmountEstimated: estimatedTarget,
       web3FeeUsd: web3Fee,
       tradBankFeeUsd: tradFee,
@@ -151,20 +156,40 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
 
           <div className="space-y-4 text-xs">
             
-            {/* You Send Amount */}
+            {/* You Send Amount & Token */}
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                You Send (USDC / USDT Stablecoin)
-              </label>
-              <div className="relative flex items-center">
-                <span className="absolute left-3.5 font-bold text-slate-400">$</span>
-                <input
-                  type="number"
-                  value={sourceAmount}
-                  onChange={(e) => setSourceAmount(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-base font-bold rounded-xl pl-8 pr-20 py-3 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <span className="absolute right-3 font-bold text-indigo-600 dark:text-indigo-400">USDC</span>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-slate-700 dark:text-slate-300 font-semibold">
+                  You Send (Any Coin)
+                </label>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  Est. Value: ~${srcUsdVal.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <select
+                    value={selectedSourceCoin}
+                    onChange={(e) => setSelectedSourceCoin(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold rounded-xl px-2 py-3 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                  >
+                    {ALL_COINS.map((c) => (
+                      <option key={c.symbol} value={c.symbol}>
+                        {c.icon} {c.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    value={sourceAmount}
+                    onChange={(e) => setSourceAmount(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-base font-bold rounded-xl px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -305,7 +330,7 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Send ${srcVal.toLocaleString()} USDC to {selectedCountry.name} ({selectedCountry.currency})</span>
+                  <span>Send {srcVal.toLocaleString()} {selectedSourceCoin} to {selectedCountry.name} ({selectedCountry.currency})</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

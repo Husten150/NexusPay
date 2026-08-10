@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MerchantInvoice, InvoiceItem, WalletState } from '../types';
+import { ALL_COINS } from '../data/coinCatalog';
 import { 
   FileText, 
   Plus, 
@@ -14,7 +15,8 @@ import {
   Bot, 
   DollarSign,
   ArrowUpRight,
-  Receipt
+  Receipt,
+  RefreshCw
 } from 'lucide-react';
 
 interface InvoiceGatewayProps {
@@ -41,7 +43,8 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
   // Standard Form State
   const [clientName, setClientName] = useState('');
   const [clientWallet, setClientWallet] = useState('');
-  const [paymentToken, setPaymentToken] = useState<'USDC' | 'USDT' | 'ETH' | 'MATIC' | 'SOL'>('USDC');
+  const [paymentToken, setPaymentToken] = useState<string>('USDC');
+  const [autoSwapToUsdc, setAutoSwapToUsdc] = useState(true);
   const [dueDate, setDueDate] = useState('2026-08-25');
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: '1', description: 'Smart Contract Audit & Integration', quantity: 1, unitPriceUsd: 2500, totalUsd: 2500 },
@@ -87,6 +90,7 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
       taxUsd: 0,
       totalUsd: subtotalUsd,
       paymentToken,
+      autoSwapToUsdc,
       status: 'PENDING',
       dueDate,
       createdAt: new Date().toISOString().split('T')[0],
@@ -383,17 +387,18 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                    Payment Token
+                    Accept Payment In (Any Coin)
                   </label>
                   <select
                     value={paymentToken}
                     onChange={(e: any) => setPaymentToken(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-700"
+                    className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-700 font-medium"
                   >
-                    <option value="USDC">USDC</option>
-                    <option value="USDT">USDT</option>
-                    <option value="ETH">ETH</option>
-                    <option value="MATIC">MATIC</option>
+                    {ALL_COINS.map((c) => (
+                      <option key={c.symbol} value={c.symbol}>
+                        {c.icon} {c.symbol} ({c.name})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -407,6 +412,24 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
                     className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-700"
                   />
                 </div>
+              </div>
+
+              {/* Instant Auto-Swap Settlement option */}
+              <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="font-bold text-slate-900 dark:text-white text-[11px] flex items-center gap-1">
+                    <RefreshCw className="w-3.5 h-3.5 text-indigo-500" /> Auto-Swap to USDC Stablecoin
+                  </span>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    Automatically converts any received coin ({paymentToken}) into USDC upon payment arrival.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoSwapToUsdc}
+                  onChange={(e) => setAutoSwapToUsdc(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                />
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">

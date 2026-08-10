@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { WalletState, PaymentStream, MerchantInvoice, TransactionAuditLog, YieldPosition } from '../types';
+import { getCoinInfo, ALL_COINS } from '../data/coinCatalog';
 import { 
   TrendingUp, 
   Wallet, 
@@ -15,7 +16,8 @@ import {
   Globe, 
   PiggyBank,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -45,6 +47,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   yieldPositions,
   onNavigateTab,
 }) => {
+  const [coinSearch, setCoinSearch] = useState('');
+
   const activeStreams = streams.filter((s) => s.status === 'ACTIVE');
   const monthlyOutflow = activeStreams.reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -220,34 +224,55 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         {/* Token Balance Allocation */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            Asset Breakdown
-          </h3>
-          <div className="space-y-3">
-            {(Object.entries(wallet.tokenBalances) as [string, number][]).map(([token, amount]) => {
-              const approxPrice = token === 'ETH' ? 2700 : token === 'SOL' ? 140 : token === 'UNI' ? 8 : token === 'MATIC' ? 0.5 : 1;
-              const usdVal = Number(amount) * approxPrice;
-              const pct = ((usdVal / wallet.balanceUsd) * 100).toFixed(1);
+        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 flex flex-col">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Multi-Coin Asset Breakdown
+            </h3>
+            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-full">
+              {Object.keys(wallet.tokenBalances).length} Coins Active
+            </span>
+          </div>
 
-              return (
-                <div key={token} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-800 dark:text-slate-200 text-[11px]">
-                      {token}
+          {/* Coin Search Input */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              value={coinSearch}
+              onChange={(e) => setCoinSearch(e.target.value)}
+              placeholder="Search coin (e.g. BTC, ETH, SOL, DOGE...)"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-2.5 overflow-y-auto max-h-72 pr-1">
+            {(Object.entries(wallet.tokenBalances) as [string, number][])
+              .filter(([token]) => token.toLowerCase().includes(coinSearch.toLowerCase()) || getCoinInfo(token).name.toLowerCase().includes(coinSearch.toLowerCase()))
+              .map(([token, amount]) => {
+                const info = getCoinInfo(token);
+                const usdVal = Number(amount) * info.priceUsd;
+                const pct = wallet.balanceUsd > 0 ? ((usdVal / wallet.balanceUsd) * 100).toFixed(1) : '0.0';
+
+                return (
+                  <div key={token} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-base">{info.icon}</span>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 dark:text-white">{token}</span>
+                          <span className="text-[10px] text-slate-400">({info.category})</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">{amount.toLocaleString()} {token}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-bold text-slate-900 dark:text-white block">{token}</span>
-                      <span className="text-[10px] text-slate-500">{amount.toLocaleString()} {token}</span>
+                    <div className="text-right">
+                      <span className="font-bold text-slate-900 dark:text-white block">${usdVal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{pct}%</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-900 dark:text-white block">${usdVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                    <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{pct}%</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 
