@@ -74,24 +74,143 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Auto-detect & listen for real MetaMask / Injected provider on mount
+  useEffect(() => {
+    const checkConnectedMetaMask = async () => {
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        try {
+          const ethereum = (window as any).ethereum;
+          const accounts = await ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            const realAddr = accounts[0];
+            
+            // Try fetching real native chain balance in wei
+            let weiBalanceHex = '0x0';
+            try {
+              weiBalanceHex = await ethereum.request({ method: 'eth_getBalance', params: [realAddr, 'latest'] });
+            } catch (e) {
+              console.warn('eth_getBalance failed:', e);
+            }
+
+            const weiVal = parseInt(weiBalanceHex, 16) || 0;
+            const ethAmount = Number((weiVal / 1e18).toFixed(4));
+            const ethPrice = 2700; // USD
+
+            setWallet((prev) => ({
+              ...prev,
+              walletType: 'MetaMask',
+              isConnected: true,
+              address: realAddr,
+              balanceUsd: prev.walletType === 'MetaMask' ? (ethAmount * ethPrice) : prev.balanceUsd,
+              tokenBalances: {
+                ...prev.tokenBalances,
+                ETH: ethAmount > 0 ? ethAmount : (prev.tokenBalances.ETH || 0),
+              },
+            }));
+          }
+
+          const handleAccountsChanged = async (accs: string[]) => {
+            if (accs.length > 0) {
+              const realAddr = accs[0];
+              setWallet((prev) => ({
+                ...prev,
+                walletType: 'MetaMask',
+                isConnected: true,
+                address: realAddr,
+              }));
+              showToast(`MetaMask Connected: ${realAddr.slice(0, 6)}...${realAddr.slice(-4)}`);
+            } else {
+              setWallet((prev) => ({
+                ...prev,
+                isConnected: false,
+                address: '',
+              }));
+              showToast('MetaMask Disconnected');
+            }
+          };
+
+          ethereum.on?.('accountsChanged', handleAccountsChanged);
+
+          return () => {
+            ethereum.removeListener?.('accountsChanged', handleAccountsChanged);
+          };
+        } catch (err) {
+          console.warn('Error checking MetaMask accounts:', err);
+        }
+      }
+    };
+
+    checkConnectedMetaMask();
+  }, []);
+
   // Wallet Handlers
   const handleSelectChain = (chain: SupportedChain) => {
     setWallet((prev) => ({ ...prev, chain }));
     showToast(`Switched Web3 Network to ${chain}`);
   };
 
-  const handleConnectWallet = (
+  const handleConnectWallet = async (
     type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Injected Web3', 
     customAddress?: string
   ) => {
-    const addressToSet = customAddress || (type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+    let addressToSet = customAddress || '';
+
+    if (!addressToSet && type === 'MetaMask' && typeof window !== 'undefined' && (window as any).ethereum) {
+      try {
+        const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts && accounts.length > 0) {
+          addressToSet = accounts[0];
+        }
+      } catch (err: any) {
+        console.warn('MetaMask request error:', err);
+      }
+    }
+
+    if (!addressToSet) {
+      addressToSet = type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+    }
+
     setWallet((prev) => ({
       ...prev,
       walletType: type,
       isConnected: true,
       address: addressToSet,
     }));
-    showToast(`Connected & Integrated Wallet Address: ${addressToSet.slice(0, 8)}...`);
+    showToast(`Connected & Integrated Wallet: ${addressToSet.slice(0, 8)}...`);
+  };
+
+  const handleDisconnectWallet = () => {
+    setWallet({
+      address: '',
+      chain: 'Polygon',
+      isConnected: false,
+      walletType: 'MetaMask',
+      balanceUsd: 0,
+      tokenBalances: {
+        USDC: 0,
+        BTC: 0,
+        ETH: 0,
+        USDT: 0,
+        SOL: 0,
+        BNB: 0,
+        MATIC: 0,
+        XRP: 0,
+        ADA: 0,
+        AVAX: 0,
+        TRX: 0,
+        DOGE: 0,
+        TON: 0,
+        SUI: 0,
+        NEAR: 0,
+        DAI: 0,
+        PYUSD: 0,
+        LINK: 0,
+        UNI: 0,
+        SHIB: 0,
+        PEPE: 0,
+      },
+    });
+    showToast('Disconnected wallet & removed demo account data.');
   };
 
   const handleTopUpFaucet = () => {
@@ -493,6 +612,7 @@ export default function App() {
         onClose={() => setShowWalletModal(false)}
         wallet={wallet}
         onConnectWallet={handleConnectWallet}
+        onDisconnectWallet={handleDisconnectWallet}
         onTopUpFaucet={handleTopUpFaucet}
       />
 
