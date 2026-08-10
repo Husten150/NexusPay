@@ -7,7 +7,9 @@ import {
   RemittanceQuote, 
   YieldPosition, 
   TransactionAuditLog, 
-  AgentActionIntent 
+  AgentActionIntent,
+  UserAccount,
+  AuthState
 } from './types';
 import { 
   INITIAL_WALLET, 
@@ -32,6 +34,8 @@ import { SecurityContractAuditor } from './components/SecurityContractAuditor';
 import { WalletModal } from './components/WalletModal';
 import { TransferModal } from './components/TransferModal';
 import { ReceiveModal } from './components/ReceiveModal';
+import { SubmissionHubModal } from './components/SubmissionHubModal';
+import { AuthModal } from './components/AuthModal';
 
 import { 
   LayoutDashboard, 
@@ -51,7 +55,30 @@ export default function App() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showSubmissionHubModal, setShowSubmissionHubModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Authentication State
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    const savedAuth = loadSavedState('auth_state', null);
+    if (savedAuth && savedAuth.user) {
+      return savedAuth;
+    }
+    // Default active logged in user session
+    return {
+      isAuthenticated: true,
+      user: {
+        id: 'usr-01',
+        username: 'enterprise_treasurer',
+        email: 'treasury@nexuspay.io',
+        secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00 (nexus shield vault matrix orbital stellar horizon beacon cipher quantum solstice zenith)',
+        isRecoveryKeyBackedUp: true,
+        createdAt: '2026-08-01T12:00:00.000Z',
+        lastLoginAt: new Date().toISOString(),
+      }
+    };
+  });
 
   // Persistent States
   const [wallet, setWallet] = useState<WalletState>(() => loadSavedState('wallet', INITIAL_WALLET));
@@ -62,12 +89,29 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<TransactionAuditLog[]>(() => loadSavedState('audit_logs', INITIAL_AUDIT_LOGS));
 
   // Sync to LocalStorage
+  useEffect(() => { saveState('auth_state', authState); }, [authState]);
   useEffect(() => { saveState('wallet', wallet); }, [wallet]);
   useEffect(() => { saveState('streams', streams); }, [streams]);
   useEffect(() => { saveState('invoices', invoices); }, [invoices]);
   useEffect(() => { saveState('remittance', remittances); }, [remittances]);
   useEffect(() => { saveState('yield', yieldPositions); }, [yieldPositions]);
   useEffect(() => { saveState('audit_logs', auditLogs); }, [auditLogs]);
+
+  const handleLoginSuccess = (user: UserAccount) => {
+    setAuthState({
+      isAuthenticated: true,
+      user
+    });
+    showToast(`Welcome, ${user.username}! Authenticated securely.`);
+  };
+
+  const handleLogout = () => {
+    setAuthState({
+      isAuthenticated: false,
+      user: null
+    });
+    showToast('Signed out of account.');
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -150,7 +194,7 @@ export default function App() {
   };
 
   const handleConnectWallet = async (
-    type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3', 
+    type: 'Enterprise Treasury Vault' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3', 
     customAddress?: string
   ) => {
     let addressToSet = customAddress || '';
@@ -455,9 +499,11 @@ export default function App() {
       {/* Navigation Header */}
       <Navbar
         wallet={wallet}
+        authState={authState}
         onOpenWalletModal={() => setShowWalletModal(true)}
         onOpenTransferModal={() => setShowTransferModal(true)}
         onOpenReceiveModal={() => setShowReceiveModal(true)}
+        onOpenAuthModal={() => setShowAuthModal(true)}
         onSelectChain={handleSelectChain}
         agentActive={true}
       />
@@ -630,6 +676,22 @@ export default function App() {
         onClose={() => setShowReceiveModal(false)}
         wallet={wallet}
         onReceiveFunds={handleReceiveFunds}
+      />
+
+      {/* Level 4 Submission Hub Modal */}
+      <SubmissionHubModal
+        isOpen={showSubmissionHubModal}
+        onClose={() => setShowSubmissionHubModal(false)}
+        wallet={wallet}
+      />
+
+      {/* Authentication & Secret Code Recovery Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        authState={authState}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
       />
 
     </div>

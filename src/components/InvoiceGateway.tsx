@@ -160,11 +160,11 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
               <Receipt className="w-3.5 h-3.5" /> Merchant B2B Invoicing
             </span>
-            <span className="text-xs text-slate-300">Track 1: Merchant Settlement Tools</span>
+            <span className="text-xs text-slate-300">Merchant Settlement Tools</span>
           </div>
           <h2 className="text-xl font-bold tracking-tight">EIP-681 Web3 Invoice Gateway & Instant Settlement</h2>
           <p className="text-xs text-slate-300 max-w-2xl">
-            Issue merchant invoices payable in USDC, USDT, or ETH. Supports QR code paylinks, automated receipt signatures, and AI invoice extraction.
+            Issue merchant invoices payable in USDC, USDT, or ETH. Supports QR code paylinks, automated receipt signatures, and intelligent invoice extraction.
           </p>
         </div>
 
@@ -174,7 +174,7 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 border border-indigo-500/40 transition-all"
           >
             <Bot className="w-4 h-4 text-indigo-400" />
-            <span>AI Text Extractor</span>
+            <span>Smart Invoice Extractor</span>
           </button>
           <button
             onClick={() => setShowModal(true)}
@@ -276,13 +276,13 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Bot className="w-5 h-5 text-indigo-500" />
-                AI Document & Text Invoice Extractor
+                Automated Invoice Extractor
               </h3>
               <button onClick={() => setShowAiModal(false)} className="text-slate-400 text-lg font-bold">✕</button>
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Paste an unformatted invoice text, contract quote, or email description. Gemini will extract line items, wallet payables, and due dates automatically.
+              Paste an unformatted invoice text, contract quote, or email description to extract line items, wallet payables, and due dates automatically.
             </p>
 
             <textarea

@@ -143,20 +143,20 @@ export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                Autonomous AI Agent Command Center
+                Automated Treasury Command Center
                 <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Track 2: Agentic Workflows
+                  Automated Workflows
                 </span>
               </h2>
               <p className="text-xs text-slate-300">
-                Instruct the AI to execute streaming payroll, issue invoices, route cross-border payments, or optimize treasury.
+                Execute streaming payroll, issue B2B invoices, route cross-border payments, or optimize treasury reserves.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800">
             <Cpu className="w-4 h-4 text-indigo-400" />
-            <span>Model: <strong className="text-indigo-300">Gemini 3.6 Flash</strong></span>
+            <span>Engine: <strong className="text-indigo-300">Soroban Rule Engine v2.4</strong></span>
           </div>
         </div>
 
@@ -183,7 +183,7 @@ export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Instruct AI</span>
+                  <span>Execute Command</span>
                   <Send className="w-3.5 h-3.5" />
                 </>
               )}

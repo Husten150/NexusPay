@@ -79,9 +79,9 @@ export const SecurityContractAuditor: React.FC<SecurityContractAuditorProps> = (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" /> Pre-Execution AI Security Guard
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" /> Pre-Execution On-Chain Security Guard
             </span>
-            <span className="text-xs text-rose-200">Track 2: Autonomous On-Chain Protection</span>
+            <span className="text-xs text-rose-200">Real-time Smart Contract Protection</span>
           </div>
           <h2 className="text-xl font-bold tracking-tight">Smart Contract & Calldata Threat Auditor</h2>
           <p className="text-xs text-slate-300 max-w-2xl">

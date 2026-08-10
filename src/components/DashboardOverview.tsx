@@ -127,7 +127,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              AI Yield Accumulated
+              DeFi Yield Accumulated
             </span>
             <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
               <PiggyBank className="w-4 h-4" />
@@ -283,11 +283,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              Recent On-Chain Activity & AI Safeguards
+              Recent On-Chain Activity & Safety Audits
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Live transaction logs audited by Gemini 3.6 Flash guard
+              Live transaction logs audited by automated protocol safeguards
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WalletState, SupportedChain } from '../types';
+import { WalletState, SupportedChain, AuthState } from '../types';
 import { 
   ShieldCheck, 
   Wallet, 
@@ -7,14 +7,19 @@ import {
   Zap, 
   Send,
   ArrowDownLeft,
-  Bot
+  Bot,
+  User,
+  KeyRound,
+  LogIn
 } from 'lucide-react';
 
 interface NavbarProps {
   wallet: WalletState;
+  authState: AuthState;
   onOpenWalletModal: () => void;
   onOpenTransferModal: () => void;
   onOpenReceiveModal: () => void;
+  onOpenAuthModal: () => void;
   onSelectChain: (chain: SupportedChain) => void;
   agentActive: boolean;
 }
@@ -35,9 +40,11 @@ const CHAINS: { name: SupportedChain; icon: string; color: string; gasGwei: numb
 
 export const Navbar: React.FC<NavbarProps> = ({
   wallet,
+  authState,
   onOpenWalletModal,
   onOpenTransferModal,
   onOpenReceiveModal,
+  onOpenAuthModal,
   onSelectChain,
   agentActive,
 }) => {
@@ -65,11 +72,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 NexusPay
               </span>
               <span className="px-1.5 py-0.5 text-xs font-semibold rounded bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                AI Agent
+                Enterprise
               </span>
             </div>
             <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-              Web3 Treasury & Autonomous Financial Infrastructure
+              Enterprise Web3 Financial Infrastructure & Remittance
             </p>
           </div>
         </div>
@@ -78,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenTransferModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
           >
             <Send className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Transfer Money</span>
@@ -90,7 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
           >
             <ArrowDownLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Receive Money</span>
+            <span className="hidden sm:inline">Receive</span>
             <span className="sm:hidden">Receive</span>
           </button>
         </div>
@@ -148,6 +155,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : wallet.address
               }
             </span>
+          </button>
+
+          {/* User Account / Auth Button */}
+          <button
+            onClick={onOpenAuthModal}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-sm active:scale-95 ${
+              authState.isAuthenticated
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+                : 'bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-slate-700 hover:bg-indigo-100'
+            }`}
+          >
+            {authState.isAuthenticated ? (
+              <>
+                <KeyRound className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="hidden sm:inline font-semibold">{authState.user?.username}</span>
+                <span className="sm:hidden font-semibold">Account</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="hidden sm:inline">Sign In / Sign Up</span>
+                <span className="sm:hidden">Login</span>
+              </>
+            )}
           </button>
 
         </div>

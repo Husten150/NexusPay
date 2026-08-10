@@ -86,13 +86,13 @@ export const TreasuryYieldOptimizer: React.FC<TreasuryYieldOptimizerProps> = ({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-              <PiggyBank className="w-3.5 h-3.5" /> AI Treasury Yield Optimizer
+              <PiggyBank className="w-3.5 h-3.5" /> Treasury Yield Optimizer
             </span>
             <span className="text-xs text-indigo-200">DeFi Blue-Chip Auto-Rebalancing</span>
           </div>
           <h2 className="text-xl font-bold tracking-tight">Smart Treasury Vault & Capital Yield Allocation</h2>
           <p className="text-xs text-slate-300 max-w-2xl">
-            Put idle treasury USDC & ETH reserves to work across Aave v3, Compound v3, and Uniswap LP pools with AI risk-managed safety checks.
+            Put idle treasury USDC & ETH reserves to work across Aave v3, Compound v3, and Uniswap LP pools with automated risk-managed safety checks.
           </p>
         </div>
 
@@ -102,7 +102,7 @@ export const TreasuryYieldOptimizer: React.FC<TreasuryYieldOptimizerProps> = ({
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-95 whitespace-nowrap"
         >
           {loadingAi ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4 text-indigo-200" />}
-          <span>Run AI Treasury Rebalance Engine</span>
+          <span>Run Yield Rebalance Engine</span>
         </button>
       </div>
 

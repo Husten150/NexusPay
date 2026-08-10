@@ -1,3 +1,21 @@
+export interface UserAccount {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash?: string;
+  secretRecoveryCode: string;
+  isRecoveryKeyBackedUp: boolean;
+  biometricRegistered?: boolean;
+  biometricCredentialId?: string;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: UserAccount | null;
+}
+
 export type SupportedChain = 
   | 'Ethereum' 
   | 'Polygon' 
@@ -15,7 +33,7 @@ export interface WalletState {
   address: string;
   chain: SupportedChain;
   isConnected: boolean;
-  walletType: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3';
+  walletType: 'Enterprise Treasury Vault' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3';
   balanceUsd: number;
   tokenBalances: Record<string, number>;
 }

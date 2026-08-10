@@ -16,7 +16,7 @@ interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
   wallet: WalletState;
-  onConnectWallet: (type: 'Simulated Sandbox' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3', customAddress?: string) => void;
+  onConnectWallet: (type: 'Enterprise Treasury Vault' | 'MetaMask' | 'Coinbase' | 'Phantom' | 'Stellar Wallet (Freighter)' | 'Injected Web3', customAddress?: string) => void;
   onDisconnectWallet?: () => void;
   onTopUpFaucet: () => void;
 }
@@ -322,20 +322,6 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               <span>Stellar Wallet (Freighter / Lobstr)</span>
             </div>
             <span className="text-[10px] text-indigo-500 font-bold">Connect</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onConnectWallet('Simulated Sandbox');
-              onClose();
-            }}
-            className="w-full p-3 rounded-xl border border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 flex items-center justify-between font-semibold transition-all text-indigo-900 dark:text-indigo-200"
-          >
-            <div className="flex items-center gap-2.5">
-              <Zap className="w-4 h-4 text-indigo-500" />
-              <span>Demo Web3 Sandbox Wallet (Pre-Funded)</span>
-            </div>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </button>
         </div>
 

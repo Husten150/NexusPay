@@ -107,7 +107,7 @@ export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
           </div>
           <h2 className="text-xl font-bold tracking-tight">Automated Streaming Payroll & Recurrent Outflow</h2>
           <p className="text-xs text-slate-300 max-w-2xl">
-            Continuously stream salaries to freelancers, core developers, and oracle nodes every second. AI agents automatically verify recipient addresses and pause stream if unusual activity occurs.
+            Continuously stream salaries to freelancers, core developers, and service providers every second. Automated risk checks verify recipient addresses and pause stream if unusual activity occurs.
           </p>
         </div>
 
@@ -178,11 +178,11 @@ export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
                 </div>
               </div>
 
-              {/* AI Guard Verification & Safety Score */}
+              {/* Guard Verification & Safety Score */}
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>AI Guard: <strong className="text-emerald-600 dark:text-emerald-400">Verified ({stream.riskScore}/100)</strong></span>
+                  <span>Safety Audit: <strong className="text-emerald-600 dark:text-emerald-400">Verified ({stream.riskScore}/100)</strong></span>
                 </div>
                 <span className="text-[10px] text-slate-400">Next: {stream.nextPaymentDate}</span>
               </div>
@@ -228,7 +228,7 @@ export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Bot className="w-5 h-5 text-indigo-500" />
-                Create AI-Verified Web3 Payment Stream
+                Create Verified Web3 Payment Stream
               </h3>
               <button
                 onClick={() => setShowModal(false)}
