@@ -160,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* User Account / Auth Button */}
           <button
             onClick={onOpenAuthModal}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-sm active:scale-95 ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-sm active:scale-95 ${
               authState.isAuthenticated
                 ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
                 : 'bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-slate-700 hover:bg-indigo-100'
@@ -168,8 +168,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {authState.isAuthenticated ? (
               <>
-                <KeyRound className="w-3.5 h-3.5 text-emerald-500" />
+                <KeyRound className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                 <span className="hidden sm:inline font-semibold">{authState.user?.username}</span>
+                <span className="hidden md:inline-block px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">
+                  {((authState.user?.walletAddress || wallet.address)).slice(0, 5)}...{((authState.user?.walletAddress || wallet.address)).slice(-4)}
+                </span>
                 <span className="sm:hidden font-semibold">Account</span>
               </>
             ) : (

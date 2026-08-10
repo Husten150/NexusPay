@@ -74,6 +74,7 @@ export default function App() {
         email: 'treasury@nexuspay.io',
         secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00 (nexus shield vault matrix orbital stellar horizon beacon cipher quantum solstice zenith)',
         isRecoveryKeyBackedUp: true,
+        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
         createdAt: '2026-08-01T12:00:00.000Z',
         lastLoginAt: new Date().toISOString(),
       }
@@ -98,11 +99,21 @@ export default function App() {
   useEffect(() => { saveState('audit_logs', auditLogs); }, [auditLogs]);
 
   const handleLoginSuccess = (user: UserAccount) => {
+    const userWalletAddress = user.walletAddress || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+    const updatedUser = { ...user, walletAddress: userWalletAddress };
+
     setAuthState({
       isAuthenticated: true,
-      user
+      user: updatedUser
     });
-    showToast(`Welcome, ${user.username}! Authenticated securely.`);
+
+    setWallet((prev) => ({
+      ...prev,
+      address: userWalletAddress,
+      isConnected: true,
+    }));
+
+    showToast(`Welcome, ${updatedUser.username}! Wallet linked: ${userWalletAddress.slice(0, 6)}...${userWalletAddress.slice(-4)}`);
   };
 
   const handleLogout = () => {

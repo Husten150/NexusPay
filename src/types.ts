@@ -7,6 +7,7 @@ export interface UserAccount {
   isRecoveryKeyBackedUp: boolean;
   biometricRegistered?: boolean;
   biometricCredentialId?: string;
+  walletAddress: string;
   createdAt: string;
   lastLoginAt: string;
 }

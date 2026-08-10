@@ -21,7 +21,8 @@ import {
   ScanFace,
   Shield,
   Smartphone,
-  RefreshCw
+  RefreshCw,
+  Wallet
 } from 'lucide-react';
 import { UserAccount, AuthState } from '../types';
 
@@ -50,6 +51,15 @@ export const generateSecretCode = (): { mnemonic: string; formattedCode: string 
   const hexPart = Array.from({ length: 4 }, () => Math.floor(Math.random() * 65536).toString(16).padStart(4, '0')).join('-');
   const formattedCode = `NEXUS-KEY-${hexPart.toUpperCase()}`;
   return { mnemonic, formattedCode };
+};
+
+export const generateRandomWalletAddress = (): string => {
+  const chars = '0123456789abcdefABCDEF';
+  let addr = '0x';
+  for (let i = 0; i < 40; i++) {
+    addr += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return addr;
 };
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -183,12 +193,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00',
         isRecoveryKeyBackedUp: true,
         biometricRegistered: true,
+        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
         createdAt: new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
       };
 
       authenticatedUser.lastLoginAt = new Date().toISOString();
       authenticatedUser.biometricRegistered = true;
+      if (!authenticatedUser.walletAddress) {
+        authenticatedUser.walletAddress = generateRandomWalletAddress();
+      }
 
       onLoginSuccess(authenticatedUser);
       setSuccessMessage('Biometric verification passed! Touch ID / Face ID authenticated.');
@@ -290,9 +304,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (matched) {
       // Login success
-      const updatedUser: UserAccount = { ...matched, lastLoginAt: new Date().toISOString() };
+      const updatedUser: UserAccount = {
+        ...matched,
+        walletAddress: matched.walletAddress || generateRandomWalletAddress(),
+        lastLoginAt: new Date().toISOString()
+      };
       onLoginSuccess(updatedUser);
-      setSuccessMessage('Logged in successfully!');
+      setSuccessMessage(`Logged in successfully! Wallet linked: ${updatedUser.walletAddress.slice(0,6)}...${updatedUser.walletAddress.slice(-4)}`);
       setTimeout(() => {
         onClose();
         setSuccessMessage(null);
@@ -308,6 +326,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       secretRecoveryCode: 'NEXUS-KEY-A8F1-99B2-33C4-77D0',
       isRecoveryKeyBackedUp: true,
       biometricRegistered: true,
+      walletAddress: generateRandomWalletAddress(),
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     };
@@ -348,6 +367,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       ? `${generatedCodeObj.formattedCode} (${generatedCodeObj.mnemonic})` 
       : 'NEXUS-KEY-88F1-9922-3311-AA00';
 
+    const generatedWallet = generateRandomWalletAddress();
+
     const newUser: UserAccount = {
       id: `usr-${Date.now()}`,
       username: signupUsername.trim(),
@@ -356,6 +377,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       isRecoveryKeyBackedUp: true,
       biometricRegistered: enableBiometricInSignup,
       biometricCredentialId: enableBiometricInSignup ? `webauthn-${Date.now()}` : undefined,
+      walletAddress: generatedWallet,
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     };
@@ -371,7 +393,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
 
     onLoginSuccess(newUser);
-    setSuccessMessage('Account created with Secret Recovery Code & Biometric Security enabled!');
+    setSuccessMessage(`Account created! Wallet address ${generatedWallet.slice(0, 6)}...${generatedWallet.slice(-4)} assigned and linked.`);
     setTimeout(() => {
       onClose();
       setSuccessMessage(null);
@@ -401,9 +423,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     );
 
     if (matched) {
-      const updatedUser: UserAccount = { ...matched, lastLoginAt: new Date().toISOString() };
+      const updatedUser: UserAccount = {
+        ...matched,
+        walletAddress: matched.walletAddress || generateRandomWalletAddress(),
+        lastLoginAt: new Date().toISOString()
+      };
       onLoginSuccess(updatedUser);
-      setSuccessMessage('Secret Recovery Code verified! Account recovered.');
+      setSuccessMessage('Secret Recovery Code verified! Account and wallet restored.');
       setTimeout(() => {
         onClose();
         setSuccessMessage(null);
@@ -420,6 +446,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         secretRecoveryCode: enteredSecretCode.trim(),
         isRecoveryKeyBackedUp: true,
         biometricRegistered: true,
+        walletAddress: generateRandomWalletAddress(),
         createdAt: new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
       };
@@ -571,6 +598,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <span className="text-slate-700 dark:text-slate-300">{authState.user.createdAt.slice(0, 10)}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Linked Wallet Address Box */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-slate-200 border border-indigo-500/30 space-y-2.5 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-white flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
+                      <Wallet className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    Account Wallet Address
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Linked
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 break-all select-all flex items-center justify-between gap-2 shadow-inner">
+                  <span>{authState.user.walletAddress}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCode(authState.user?.walletAddress || '')}
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
+                    title="Copy Wallet Address"
+                  >
+                    {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  This wallet address is automatically associated with your account for payment streams, invoices, and remittances.
+                </p>
               </div>
 
               {/* WebAuthn Biometric Security Status */}
