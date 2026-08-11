@@ -49,8 +49,46 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Navigation
-  const [activeTab, setActiveTab] = useState<'overview' | 'streams' | 'invoices' | 'remittance' | 'yield' | 'security'>('overview');
+  // Navigation with URL & History Sync
+  const [activeTab, setActiveTab] = useState<'overview' | 'streams' | 'invoices' | 'remittance' | 'yield' | 'security'>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const initialTab = urlParams.get('tab');
+      if (initialTab && ['overview', 'streams', 'invoices', 'remittance', 'yield', 'security'].includes(initialTab)) {
+        return initialTab as any;
+      }
+    }
+    return 'overview';
+  });
+
+  // Tab change handler with window.history.pushState support
+  const handleTabChange = (tab: 'overview' | 'streams' | 'invoices' | 'remittance' | 'yield' | 'security', pushToHistory = true) => {
+    setActiveTab(tab);
+    if (pushToHistory && typeof window !== 'undefined') {
+      const newUrl = `${window.location.pathname}?tab=${tab}`;
+      window.history.pushState({ tab }, '', newUrl);
+    }
+  };
+
+  // Listen for browser Back and Forward arrow navigation (popstate event)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.tab) {
+        setActiveTab(event.state.tab);
+      } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabFromUrl = urlParams.get('tab');
+        if (tabFromUrl && ['overview', 'streams', 'invoices', 'remittance', 'yield', 'security'].includes(tabFromUrl)) {
+          setActiveTab(tabFromUrl as any);
+        } else {
+          setActiveTab('overview');
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   
   // Modals
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -459,7 +497,7 @@ export default function App() {
         category: 'ENGINEERING_PAYROLL',
       };
       handleAddStream(newStream);
-      setActiveTab('streams');
+      handleTabChange('streams');
     } else if (intent.actionType === 'INSTANT_TRANSFER') {
       setShowTransferModal(true);
       showToast('AI Agent opened Transfer modal');
@@ -483,15 +521,15 @@ export default function App() {
         qrPayload: `ethereum:${wallet.address}@137/pay?value=${sub}&token=USDC`,
       };
       handleAddInvoice(newInv);
-      setActiveTab('invoices');
+      handleTabChange('invoices');
     } else if (intent.actionType === 'CROSS_BORDER_REMITTANCE') {
-      setActiveTab('remittance');
+      handleTabChange('remittance');
       showToast('AI Agent populated cross-border remittance quote!');
     } else if (intent.actionType === 'YIELD_DEPOSIT') {
-      setActiveTab('yield');
+      handleTabChange('yield');
       showToast('AI Agent navigated to Treasury Yield Vaults!');
     } else if (intent.actionType === 'SECURITY_AUDIT') {
-      setActiveTab('security');
+      handleTabChange('security');
       showToast('AI Agent triggered contract audit scanner!');
     } else {
       showToast('AI Command processed and logged.');
@@ -499,8 +537,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-200 pb-16">
+    <div className="min-h-screen bg-vibrant-quad dark:bg-vibrant-quad text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-200 pb-16 relative overflow-x-hidden">
       
+      {/* Ambient Decorative Multi-Color Mesh Accents (Orange, Blue, Red, Green) */}
+      <div className="fixed top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
+      <div className="fixed top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none translate-x-1/2 -translate-y-1/2"></div>
+      <div className="fixed bottom-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none translate-x-1/2 translate-y-1/2"></div>
+      <div className="fixed bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
+
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 p-4 rounded-xl bg-slate-900 text-white shadow-2xl border border-indigo-500/40 text-xs font-semibold flex items-center gap-2 animate-in slide-in-from-bottom-2">
@@ -532,85 +576,92 @@ export default function App() {
           onExecuteIntent={handleExecuteAgentIntent}
         />
 
-        {/* Tab Navigation Menu */}
-        <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto my-6 scrollbar-none">
-          
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'overview'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Treasury & Overview</span>
-          </button>
+        {/* Tab Navigation Menu (Clean, Multi-Color Tab Bar) */}
+        <div className="my-6">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+            
+            <button
+              onClick={() => handleTabChange('overview')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap border shadow-sm ${
+                activeTab === 'overview'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-400/80 shadow-orange-500/25'
+                  : 'bg-slate-900/60 dark:bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <LayoutDashboard className={`w-4 h-4 ${activeTab === 'overview' ? 'text-white' : 'text-orange-400'}`} />
+              <span>Treasury & Overview</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('streams')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'streams'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Zap className="w-4 h-4 text-emerald-500" />
-            <span>Streaming Payroll</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px]">
-              {streams.filter(s => s.status === 'ACTIVE').length} Active
-            </span>
-          </button>
+            <button
+              onClick={() => handleTabChange('streams')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap border shadow-sm ${
+                activeTab === 'streams'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white border-emerald-400/80 shadow-emerald-500/25'
+                  : 'bg-slate-900/60 dark:bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <Zap className={`w-4 h-4 ${activeTab === 'streams' ? 'text-white' : 'text-emerald-400'}`} />
+              <span>Streaming Payroll</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                activeTab === 'streams' 
+                  ? 'bg-white/20 text-white border-white/30' 
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+              }`}>
+                {streams.filter(s => s.status === 'ACTIVE').length} Active
+              </span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('invoices')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'invoices'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            <span>Merchant Invoices</span>
-          </button>
+            <button
+              onClick={() => handleTabChange('invoices')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap border shadow-sm ${
+                activeTab === 'invoices'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-500 text-white border-blue-400/80 shadow-blue-500/25'
+                  : 'bg-slate-900/60 dark:bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <Receipt className={`w-4 h-4 ${activeTab === 'invoices' ? 'text-white' : 'text-blue-400'}`} />
+              <span>Merchant Invoices</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('remittance')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'remittance'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Globe className="w-4 h-4" />
-            <span>Global Remittance</span>
-          </button>
+            <button
+              onClick={() => handleTabChange('remittance')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap border shadow-sm ${
+                activeTab === 'remittance'
+                  ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white border-cyan-400/80 shadow-cyan-500/25'
+                  : 'bg-slate-900/60 dark:bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <Globe className={`w-4 h-4 ${activeTab === 'remittance' ? 'text-white' : 'text-cyan-400'}`} />
+              <span>Global Remittance</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('yield')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'yield'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <PiggyBank className="w-4 h-4 text-amber-500" />
-            <span>AI Yield Vaults</span>
-          </button>
+            <button
+              onClick={() => handleTabChange('yield')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap border shadow-sm ${
+                activeTab === 'yield'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-extrabold border-amber-300/80 shadow-amber-500/25'
+                  : 'bg-slate-900/60 dark:bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <PiggyBank className={`w-4 h-4 ${activeTab === 'yield' ? 'text-slate-950' : 'text-amber-400'}`} />
+              <span>AI Yield Vaults</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'security'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-rose-500" />
-            <span>Security Auditor</span>
-          </button>
+            <button
+              onClick={() => handleTabChange('security')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap border shadow-sm ${
+                activeTab === 'security'
+                  ? 'bg-gradient-to-r from-rose-600 to-red-500 text-white border-rose-400/80 shadow-rose-500/25'
+                  : 'bg-slate-900/60 dark:bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <ShieldCheck className={`w-4 h-4 ${activeTab === 'security' ? 'text-white' : 'text-rose-400'}`} />
+              <span>Security Auditor</span>
+            </button>
 
+          </div>
         </div>
+
 
         {/* Tab Content Display */}
         <div className="transition-all duration-150">

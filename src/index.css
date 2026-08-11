@@ -1,1 +1,59 @@
 @import "tailwindcss";
+
+@layer utilities {
+  /* Ambient Multi-Color Background: Rich mixture of Vivid Orange, Electric Blue, Crimson Red, Emerald Green */
+  .bg-vibrant-quad {
+    background-color: #0b0f19;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(249, 115, 22, 0.28) 0px, transparent 55%),     /* Vivid Orange */
+      radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.28) 0px, transparent 55%),   /* Electric Blue */
+      radial-gradient(at 100% 100%, rgba(239, 68, 68, 0.25) 0px, transparent 55%),   /* Crimson Red */
+      radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.25) 0px, transparent 55%),   /* Emerald Green */
+      radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.18) 0px, transparent 65%);  /* Center Violet Glow */
+  }
+
+  .bg-vibrant-quad-light {
+    background-color: #f8fafc;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(249, 115, 22, 0.15) 0px, transparent 50%),     /* Vivid Orange */
+      radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),   /* Electric Blue */
+      radial-gradient(at 100% 100%, rgba(239, 68, 68, 0.12) 0px, transparent 50%),   /* Crimson Red */
+      radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.12) 0px, transparent 50%);   /* Emerald Green */
+  }
+
+  /* Vibrant Multi-Color Gradient Text */
+  .text-gradient-quad {
+    background: linear-gradient(135deg, #f97316 0%, #3b82f6 33%, #ef4444 66%, #10b981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Animated glowing mesh pill & border accent */
+  .quad-border-glow {
+    position: relative;
+  }
+  
+  .quad-border-glow::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #f97316, #3b82f6, #ef4444, #10b981);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Subtle pulsing background aura */
+  @keyframes auraPulse {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.25; }
+    50% { transform: scale(1.08) rotate(5deg); opacity: 0.35; }
+  }
+
+  .animate-aura-pulse {
+    animation: auraPulse 12s ease-in-out infinite;
+  }
+}
+

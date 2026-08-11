@@ -17,6 +17,7 @@ import {
   EyeOff,
   CheckCircle2,
   LogOut,
+  LogIn,
   Fingerprint,
   ScanFace,
   Shield,
@@ -713,21 +714,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="space-y-4 animate-in fade-in duration-150">
               
               {/* Touch ID / Face ID Biometric One-Touch Sign-In */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/80 via-slate-900 to-indigo-950 border border-indigo-800/60 text-white space-y-3">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/90 via-slate-900 to-indigo-950 border border-indigo-800/60 text-white space-y-3 shadow-md">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300">
                       <Fingerprint className="w-5 h-5 text-indigo-400" />
                     </div>
                     <div>
                       <h4 className="font-bold text-xs text-white flex items-center gap-1.5">
                         <span>Touch ID / Face ID Biometrics</span>
                         <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          WebAuthn API
+                          WebAuthn Passkey
                         </span>
                       </h4>
                       <p className="text-[10px] text-indigo-200/80">
-                        Instant passwordless sign-in via hardware security sensor
+                        Instant passwordless authentication via hardware sensor
                       </p>
                     </div>
                   </div>
@@ -737,25 +738,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type="button"
                   onClick={handleBiometricLogin}
                   disabled={isBiometricScanning}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
                 >
                   <ScanFace className="w-4 h-4 text-indigo-200" />
                   <span>Authenticate with Touch ID / Face ID</span>
                 </button>
               </div>
 
-              <div className="flex items-center my-2 text-slate-400">
+              <div className="flex items-center my-3 text-slate-400">
                 <div className="flex-1 border-t border-slate-200 dark:border-slate-800"></div>
                 <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Or Sign In With Password
+                  Or Sign In With Email / Account
                 </span>
                 <div className="flex-1 border-t border-slate-200 dark:border-slate-800"></div>
               </div>
 
-              <form onSubmit={handleLoginSubmit} className="space-y-3">
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
                 <div>
                   <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                    Email or Username
+                    Email Address or Username
                   </label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -763,17 +764,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="text"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="e.g. enterprise_lead or user@nexuspay.io"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-9 pr-3 py-2.5 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="e.g. treasurer@nexuspay.io or enterprise_lead"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-9 pr-3 py-2.5 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setMode('RECOVER'); setErrorMessage(null); }}
+                      className="text-indigo-600 dark:text-indigo-400 font-bold text-[11px] hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     <input
@@ -781,7 +791,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter account password"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-9 pr-10 py-2.5 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-9 pr-10 py-2.5 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                     <button
@@ -795,21 +805,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-1">
-                  <button
-                    type="button"
-                    onClick={() => { setMode('RECOVER'); setErrorMessage(null); }}
-                    className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
-                  >
-                    Forgot Password? Recover with Secret Code
-                  </button>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                    />
+                    <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Remember this browser session</span>
+                  </label>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
                 >
+                  <LogIn className="w-4 h-4" />
                   <span>Sign In to Account</span>
-                  <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
             </div>
@@ -817,59 +828,98 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* TAB 2: SIGNUP FORM */}
           {!authState.isAuthenticated && mode === 'SIGNUP' && (
-            <form onSubmit={handleSignupSubmit} className="space-y-3.5 animate-in fade-in duration-150">
+            <form onSubmit={handleSignupSubmit} className="space-y-3 animate-in fade-in duration-150">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">Username</label>
-                  <input
-                    type="text"
-                    value={signupUsername}
-                    onChange={(e) => setSignupUsername(e.target.value)}
-                    placeholder="e.g. treasury_admin"
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Username / Member Handle
+                  </label>
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value)}
+                      placeholder="e.g. treasury_admin"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    placeholder="e.g. admin@nexuspay.io"
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      placeholder="admin@company.com"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">Password</label>
-                  <input
-                    type="password"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">Confirm Password</label>
-                  <input
-                    type="password"
-                    value={signupConfirmPassword}
-                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="password"
+                      value={signupConfirmPassword}
+                      onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* Password strength bar indicator */}
+              {signupPassword && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-semibold text-slate-500">
+                    <span>Password Security Level:</span>
+                    <span className={signupPassword.length >= 8 ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>
+                      {signupPassword.length >= 10 ? "Strong (Recommended)" : signupPassword.length >= 6 ? "Good" : "Weak"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${
+                        signupPassword.length >= 10 ? "w-full bg-emerald-500" : signupPassword.length >= 6 ? "w-2/3 bg-amber-500" : "w-1/3 bg-rose-500"
+                      }`}
+                    ></div>
+                  </div>
+                </div>
+              )}
 
               {/* Enable Biometric TouchID / FaceID Option */}
               <div className="p-3 rounded-xl bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 flex items-center justify-between">
@@ -880,7 +930,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       Enable Touch ID / Face ID
                     </span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Fast passwordless WebAuthn login
+                      Fast passwordless WebAuthn hardware passkey
                     </span>
                   </div>
                 </div>
@@ -901,7 +951,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[11px] flex items-center gap-1.5 uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                      <KeyRound className="w-3.5 h-3.5" /> Generated Secret Recovery Code
+                      <KeyRound className="w-3.5 h-3.5 text-amber-500" /> Generated 12-Word Recovery Code
                     </span>
 
                     <button
@@ -941,7 +991,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
               >
                 <UserCheck className="w-4 h-4" />
-                <span>Complete Registration & Sign In</span>
+                <span>Complete Registration & Create Account</span>
               </button>
             </form>
           )}
