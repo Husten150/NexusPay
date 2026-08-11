@@ -63,26 +63,99 @@ export default function App() {
 
   // Tab change handler with window.history.pushState support
   const handleTabChange = (tab: 'overview' | 'streams' | 'invoices' | 'remittance' | 'yield' | 'security', pushToHistory = true) => {
+    setShowWalletModal(false);
+    setShowTransferModal(false);
+    setShowReceiveModal(false);
+    setShowSubmissionHubModal(false);
+    setShowAuthModal(false);
+    setShowPwaModal(false);
+
     setActiveTab(tab);
     if (pushToHistory && typeof window !== 'undefined') {
       const newUrl = `${window.location.pathname}?tab=${tab}`;
-      window.history.pushState({ tab }, '', newUrl);
+      if (window.location.search !== `?tab=${tab}` || !window.history.state || window.history.state.tab !== tab) {
+        window.history.pushState({ tab }, '', newUrl);
+      }
     }
   };
+
+  // Helper functions to open modals with browser history tracking
+  const handleOpenWalletModal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'wallet', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=wallet`);
+    }
+    setShowWalletModal(true);
+  };
+
+  const handleOpenTransferModal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'transfer', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=transfer`);
+    }
+    setShowTransferModal(true);
+  };
+
+  const handleOpenReceiveModal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'receive', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=receive`);
+    }
+    setShowReceiveModal(true);
+  };
+
+  const handleOpenAuthModal = (reason?: string) => {
+    setAuthReason(reason);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'auth', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=auth`);
+    }
+    setShowAuthModal(true);
+  };
+
+  const handleOpenPwaModal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'pwa', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=pwa`);
+    }
+    setShowPwaModal(true);
+  };
+
+  // Initial history state initialization on load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!window.history.state || !window.history.state.tab) {
+        window.history.replaceState({ tab: activeTab }, '', window.location.href);
+      }
+    }
+  }, []);
 
   // Listen for browser Back and Forward arrow navigation (popstate event)
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.tab) {
-        setActiveTab(event.state.tab);
+      const state = event.state;
+      if (state) {
+        if (state.tab && ['overview', 'streams', 'invoices', 'remittance', 'yield', 'security'].includes(state.tab)) {
+          setActiveTab(state.tab);
+        }
+        setShowWalletModal(state.modal === 'wallet');
+        setShowTransferModal(state.modal === 'transfer');
+        setShowReceiveModal(state.modal === 'receive');
+        setShowAuthModal(state.modal === 'auth');
+        setShowSubmissionHubModal(state.modal === 'submission');
+        setShowPwaModal(state.modal === 'pwa');
       } else {
         const urlParams = new URLSearchParams(window.location.search);
         const tabFromUrl = urlParams.get('tab');
+        const modalFromUrl = urlParams.get('modal');
+
         if (tabFromUrl && ['overview', 'streams', 'invoices', 'remittance', 'yield', 'security'].includes(tabFromUrl)) {
           setActiveTab(tabFromUrl as any);
         } else {
           setActiveTab('overview');
         }
+
+        setShowWalletModal(modalFromUrl === 'wallet');
+        setShowTransferModal(modalFromUrl === 'transfer');
+        setShowReceiveModal(modalFromUrl === 'receive');
+        setShowAuthModal(modalFromUrl === 'auth');
+        setShowSubmissionHubModal(modalFromUrl === 'submission');
+        setShowPwaModal(modalFromUrl === 'pwa');
       }
     };
 
@@ -595,11 +668,11 @@ export default function App() {
       <Navbar
         wallet={wallet}
         authState={authState}
-        onOpenWalletModal={() => setShowWalletModal(true)}
-        onOpenTransferModal={() => setShowTransferModal(true)}
-        onOpenReceiveModal={() => setShowReceiveModal(true)}
-        onOpenAuthModal={() => { setAuthReason(undefined); setShowAuthModal(true); }}
-        onOpenPwaModal={() => setShowPwaModal(true)}
+        onOpenWalletModal={handleOpenWalletModal}
+        onOpenTransferModal={handleOpenTransferModal}
+        onOpenReceiveModal={handleOpenReceiveModal}
+        onOpenAuthModal={() => handleOpenAuthModal()}
+        onOpenPwaModal={handleOpenPwaModal}
         onNavigateHome={() => {
           setShowReceiveModal(false);
           setShowTransferModal(false);
@@ -618,7 +691,7 @@ export default function App() {
         <AgentCommandCenter
           wallet={wallet}
           authState={authState}
-          onOpenAuthModal={() => { setAuthReason(undefined); setShowAuthModal(true); }}
+          onOpenAuthModal={() => handleOpenAuthModal()}
           onExecuteIntent={handleExecuteAgentIntent}
         />
 
@@ -718,7 +791,7 @@ export default function App() {
               invoices={invoices}
               auditLogs={auditLogs}
               yieldPositions={yieldPositions}
-              onNavigateTab={(tab: any) => setActiveTab(tab)}
+              onNavigateTab={(tab: any) => handleTabChange(tab)}
             />
           )}
 
@@ -727,7 +800,7 @@ export default function App() {
               streams={streams}
               wallet={wallet}
               authState={authState}
-              onOpenAuthModal={() => setShowAuthModal(true)}
+              onOpenAuthModal={() => handleOpenAuthModal()}
               onAddStream={handleAddStream}
               onToggleStreamStatus={handleToggleStreamStatus}
             />
@@ -738,7 +811,7 @@ export default function App() {
               invoices={invoices}
               wallet={wallet}
               authState={authState}
-              onOpenAuthModal={() => setShowAuthModal(true)}
+              onOpenAuthModal={() => handleOpenAuthModal()}
               onAddInvoice={handleAddInvoice}
               onMarkInvoicePaid={handleMarkInvoicePaid}
             />
@@ -749,7 +822,7 @@ export default function App() {
               quotes={remittances}
               wallet={wallet}
               authState={authState}
-              onOpenAuthModal={() => setShowAuthModal(true)}
+              onOpenAuthModal={() => handleOpenAuthModal()}
               onExecuteRemittance={handleExecuteRemittance}
             />
           )}
@@ -759,7 +832,7 @@ export default function App() {
               positions={yieldPositions}
               wallet={wallet}
               authState={authState}
-              onOpenAuthModal={() => setShowAuthModal(true)}
+              onOpenAuthModal={() => handleOpenAuthModal()}
               onAddPosition={handleAddYieldPosition}
             />
           )}

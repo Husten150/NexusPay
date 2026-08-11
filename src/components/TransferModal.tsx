@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WalletState, SupportedChain, TransactionAuditLog, AuthState } from '../types';
-import { ALL_COINS, getCoinInfo, convertCoinToUsd } from '../data/coinCatalog';
+import { ALL_COINS, getCoinInfo, convertCoinToUsd, getCoinsForChain } from '../data/coinCatalog';
+import { validateAddressForChain } from '../utils/chainAddress';
 import { 
   Send, 
   ArrowRight, 
@@ -80,6 +81,17 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   useEffect(() => {
     setSelectedChain(wallet.chain);
   }, [wallet.chain]);
+
+  // Available coins specifically on the selected network
+  const availableCoins = getCoinsForChain(selectedChain);
+
+  // Auto-reset selected token if it's not supported on newly selected network
+  useEffect(() => {
+    const isStillValid = availableCoins.some((c) => c.symbol === selectedToken);
+    if (!isStillValid && availableCoins.length > 0) {
+      setSelectedToken(availableCoins[0].symbol);
+    }
+  }, [selectedChain]);
 
   // Simulate real-time gas price fluctuations
   useEffect(() => {
@@ -278,14 +290,35 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
             {/* Recipient Address Input */}
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                Recipient Wallet Address / ENS / Unstoppable Domain
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold">
+                  Recipient Address / ENS / Domain
+                </label>
+                {recipient.trim() && (
+                  <span className={`text-[10px] font-semibold flex items-center gap-1 ${
+                    validateAddressForChain(selectedChain, recipient).isValid 
+                      ? 'text-emerald-500 dark:text-emerald-400' 
+                      : 'text-amber-500'
+                  }`}>
+                    {validateAddressForChain(selectedChain, recipient).isValid ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Valid {selectedChain} Format</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3" />
+                        <span>{validateAddressForChain(selectedChain, recipient).reason}</span>
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
-                placeholder="0x71C... or recipient.eth or Stellar (G...) or Solana address"
+                placeholder={selectedChain === 'Solana' ? '7xKXtg... (Solana Address)' : selectedChain === 'Bitcoin Network' ? 'bc1q... (Bitcoin Address)' : selectedChain === 'Stellar Network' ? 'G... (Stellar Public Key)' : selectedChain === 'Tron' ? 'T... (Tron Address)' : '0x71C... or recipient.eth'}
                 className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -301,7 +334,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                   onChange={(e) => setSelectedToken(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold rounded-xl px-2.5 py-2 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                 >
-                  {ALL_COINS.map((c) => (
+                  {availableCoins.map((c) => (
                     <option key={c.symbol} value={c.symbol}>
                       {c.icon} {c.symbol} ({c.name})
                     </option>
