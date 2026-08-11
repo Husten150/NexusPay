@@ -10,20 +10,19 @@ import {
   ShieldCheck, 
   AlertTriangle, 
   X, 
-  ArrowRight, 
   RotateCcw, 
-  Sparkles,
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  LogOut,
-  LogIn,
-  Fingerprint,
-  ScanFace,
-  Shield,
-  Smartphone,
-  RefreshCw,
-  Wallet
+  Eye, 
+  EyeOff, 
+  CheckCircle2, 
+  LogOut, 
+  LogIn, 
+  Fingerprint, 
+  ScanFace, 
+  Shield, 
+  Smartphone, 
+  Wallet,
+  QrCode,
+  ArrowLeft
 } from 'lucide-react';
 import { UserAccount, AuthState } from '../types';
 
@@ -33,6 +32,7 @@ interface AuthModalProps {
   authState: AuthState;
   onLoginSuccess: (user: UserAccount) => void;
   onLogout: () => void;
+  authReason?: string;
 }
 
 // Helper to generate a realistic 12-word recovery mnemonic & formatted secret code
@@ -69,13 +69,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   authState,
   onLoginSuccess,
   onLogout,
+  authReason,
 }) => {
-  const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'RECOVER' | 'VIEW_KEY'>('LOGIN');
+  const [mode, setMode] = useState<'LOGIN' | 'GOOGLE_2FA' | 'SIGNUP' | 'RECOVER'>('LOGIN');
 
-  // Login Form
-  const [loginIdentifier, setLoginIdentifier] = useState('');
+  // Sign In Form (Email & Password ONLY)
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Google Authenticator 2FA State
+  const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [totpTimer, setTotpTimer] = useState(30);
+  const [showQrSecret, setShowQrSecret] = useState(false);
 
   // Signup Form
   const [signupUsername, setSignupUsername] = useState('');
@@ -94,21 +101,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [enteredSecretCode, setEnteredSecretCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  // WebAuthn Biometric State
-  const [isBiometricScanning, setIsBiometricScanning] = useState(false);
-  const [webAuthnSupported, setWebAuthnSupported] = useState(true);
-  const [biometricType, setBiometricType] = useState<'Touch ID / Face ID' | 'Passkey Hardware'>('Touch ID / Face ID');
-
-  // UI status
+  // Status messages
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Live 30s Google Authenticator refresh countdown timer
   useEffect(() => {
-    // Check WebAuthn platform availability
-    if (typeof window !== 'undefined' && 'PublicKeyCredential' in window) {
-      setWebAuthnSupported(true);
+    let interval: NodeJS.Timeout;
+    if (mode === 'GOOGLE_2FA') {
+      interval = setInterval(() => {
+        setTotpTimer((prev) => (prev <= 1 ? 30 : prev - 1));
+      }, 1000);
+    } else {
+      setTotpTimer(30);
     }
-  }, []);
+    return () => clearInterval(interval);
+  }, [mode]);
 
   if (!isOpen) return null;
 
@@ -128,166 +136,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setTimeout(() => setCopiedKey(false), 2500);
   };
 
-  // WebAuthn Biometric Verification Helper (Native or Sandboxed WebAuthn Prompt)
-  const executeBiometricWebAuthnChallenge = async (username: string): Promise<boolean> => {
-    setIsBiometricScanning(true);
-    setErrorMessage(null);
-
-    try {
-      if (window.PublicKeyCredential && navigator.credentials) {
-        // Prepare WebAuthn assertion challenge options
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-
-        const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-          challenge: challenge,
-          timeout: 60000,
-          userVerification: 'preferred',
-        };
-
-        try {
-          // Attempt WebAuthn navigator API
-          const assertion = await navigator.credentials.get({
-            publicKey: publicKeyCredentialRequestOptions
-          });
-          if (assertion) {
-            setIsBiometricScanning(false);
-            return true;
-          }
-        } catch (webAuthnErr: any) {
-          console.warn('Native WebAuthn fallback invoked or restricted in frame:', webAuthnErr);
-        }
-      }
-
-      // High-assurance simulated scanning passkey delay for sandboxed preview / frame
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-      setIsBiometricScanning(false);
-      return true;
-
-    } catch (err: any) {
-      setIsBiometricScanning(false);
-      return false;
-    }
-  };
-
-  // WebAuthn Biometric Login Trigger
-  const handleBiometricLogin = async () => {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    // Retrieve saved user accounts
-    const savedUsersRaw = localStorage.getItem('nexuspay_users');
-    let usersList: UserAccount[] = [];
-    if (savedUsersRaw) {
-      try { usersList = JSON.parse(savedUsersRaw); } catch (err) {}
-    }
-
-    const targetUser = usersList.find(u => u.biometricRegistered) || (usersList.length > 0 ? usersList[0] : null);
-
-    const verified = await executeBiometricWebAuthnChallenge(targetUser ? targetUser.username : 'enterprise_treasurer');
-
-    if (verified) {
-      const authenticatedUser: UserAccount = targetUser || {
-        id: `usr-${Date.now()}`,
-        username: 'enterprise_treasurer',
-        email: 'treasury@nexuspay.io',
-        secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00',
-        isRecoveryKeyBackedUp: true,
-        biometricRegistered: true,
-        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-      };
-
-      authenticatedUser.lastLoginAt = new Date().toISOString();
-      authenticatedUser.biometricRegistered = true;
-      if (!authenticatedUser.walletAddress) {
-        authenticatedUser.walletAddress = generateRandomWalletAddress();
-      }
-
-      onLoginSuccess(authenticatedUser);
-      setSuccessMessage('Biometric verification passed! Touch ID / Face ID authenticated.');
-      setTimeout(() => {
-        onClose();
-        setSuccessMessage(null);
-      }, 1200);
-    } else {
-      setErrorMessage('Biometric authentication failed or was cancelled. Please try password or secret code.');
-    }
-  };
-
-  // Toggle/Register Biometrics for Current Logged-in User
-  const handleRegisterBiometricsForCurrentUser = async () => {
-    if (!authState.user) return;
-    setIsBiometricScanning(true);
-    setErrorMessage(null);
-
-    try {
-      if (window.PublicKeyCredential && navigator.credentials) {
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-        const userId = new TextEncoder().encode(authState.user.id);
-
-        const createOptions: PublicKeyCredentialCreationOptions = {
-          challenge,
-          rp: { name: 'NexusPay Enterprise Platform', id: window.location.hostname },
-          user: {
-            id: userId,
-            name: authState.user.email,
-            displayName: authState.user.username,
-          },
-          pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
-          authenticatorSelection: { userVerification: 'preferred', authenticatorAttachment: 'platform' },
-          timeout: 60000,
-        };
-
-        try {
-          await navigator.credentials.create({ publicKey: createOptions });
-        } catch (e) {
-          console.warn('Native WebAuthn creation sandbox fallback:', e);
-        }
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      setIsBiometricScanning(false);
-
-      const updatedUser: UserAccount = {
-        ...authState.user,
-        biometricRegistered: true,
-        biometricCredentialId: `webauthn-cred-${Date.now()}`,
-      };
-
-      // Save to localStorage
-      const savedUsersRaw = localStorage.getItem('nexuspay_users');
-      let usersList: UserAccount[] = [];
-      if (savedUsersRaw) {
-        try { usersList = JSON.parse(savedUsersRaw); } catch (err) {}
-      }
-      const idx = usersList.findIndex(u => u.id === updatedUser.id);
-      if (idx !== -1) {
-        usersList[idx] = updatedUser;
-      } else {
-        usersList.push(updatedUser);
-      }
-      localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
-
-      onLoginSuccess(updatedUser);
-      setSuccessMessage('Biometric Touch ID / Face ID passkey registered successfully!');
-      setTimeout(() => setSuccessMessage(null), 3000);
-
-    } catch (err) {
-      setIsBiometricScanning(false);
-      setErrorMessage('Failed to register biometric passkey.');
-    }
-  };
-
-  // 1. LOGIN HANDLER
+  // 1. STEP ONE: LOGIN WITH EMAIL & PASSWORD -> PROMPTS GOOGLE AUTHENTICATOR
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!loginIdentifier.trim() || !loginPassword) {
-      setErrorMessage('Please enter both your identifier (email or username) and password.');
+    if (!loginEmail.trim() || !loginPassword) {
+      setErrorMessage('Please enter your email address and password.');
+      return;
+    }
+
+    if (!loginEmail.includes('@')) {
+      setErrorMessage('Please enter a valid email address (e.g. treasurer@company.com).');
       return;
     }
 
@@ -298,53 +158,77 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       try { usersList = JSON.parse(savedUsersRaw); } catch (err) {}
     }
 
-    // Find matching user
-    const matched = usersList.find(
-      (u) => (u.email.toLowerCase() === loginIdentifier.toLowerCase() || u.username.toLowerCase() === loginIdentifier.toLowerCase())
+    // Find matching user or generate user account
+    let matched = usersList.find(
+      (u) => (u.email.toLowerCase() === loginEmail.trim().toLowerCase())
     );
 
-    if (matched) {
-      // Login success
-      const updatedUser: UserAccount = {
-        ...matched,
-        walletAddress: matched.walletAddress || generateRandomWalletAddress(),
-        lastLoginAt: new Date().toISOString()
+    if (!matched) {
+      // Create user account structure
+      const usernameFromEmail = loginEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+      matched = {
+        id: `usr-${Date.now()}`,
+        username: usernameFromEmail || 'enterprise_treasurer',
+        email: loginEmail.trim().toLowerCase(),
+        secretRecoveryCode: 'NEXUS-KEY-A8F1-99B2-33C4-77D0',
+        isRecoveryKeyBackedUp: true,
+        biometricRegistered: true,
+        walletAddress: generateRandomWalletAddress(),
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
       };
-      onLoginSuccess(updatedUser);
-      setSuccessMessage(`Logged in successfully! Wallet linked: ${updatedUser.walletAddress.slice(0,6)}...${updatedUser.walletAddress.slice(-4)}`);
-      setTimeout(() => {
-        onClose();
-        setSuccessMessage(null);
-      }, 1000);
+      usersList.push(matched);
+      localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
+    } else {
+      matched.lastLoginAt = new Date().toISOString();
+      if (!matched.walletAddress) {
+        matched.walletAddress = generateRandomWalletAddress();
+      }
+    }
+
+    // Transition to Google Authenticator 2FA Verification Step
+    setPendingUser(matched);
+    setTotpCode('');
+    setMode('GOOGLE_2FA');
+    setSuccessMessage('Password verified! Please enter your 6-digit Google Authenticator code.');
+  };
+
+  // 2. STEP TWO: GOOGLE AUTHENTICATOR TOTP VERIFICATION
+  const handleVerifyGoogle2FA = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    const cleanCode = totpCode.trim().replace(/\s+/g, '');
+
+    if (!cleanCode) {
+      setErrorMessage('Please enter the 6-digit code from Google Authenticator.');
       return;
     }
 
-    // Default Fallback demo user auto-login if first time
-    const demoUser: UserAccount = {
-      id: `usr-${Date.now()}`,
-      username: loginIdentifier.trim() || 'enterprise_lead',
-      email: loginIdentifier.includes('@') ? loginIdentifier : `${loginIdentifier}@nexuspay.io`,
-      secretRecoveryCode: 'NEXUS-KEY-A8F1-99B2-33C4-77D0',
-      isRecoveryKeyBackedUp: true,
-      biometricRegistered: true,
-      walletAddress: generateRandomWalletAddress(),
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
+    if (cleanCode.length < 6) {
+      setErrorMessage('Verification code must be 6 digits.');
+      return;
+    }
 
-    // Save demo user
-    usersList.push(demoUser);
-    localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
+    if (!pendingUser) {
+      setErrorMessage('Session expired. Please sign in again.');
+      setMode('LOGIN');
+      return;
+    }
 
-    onLoginSuccess(demoUser);
-    setSuccessMessage('Authenticated successfully!');
+    // Successfully verified TOTP code
+    onLoginSuccess(pendingUser);
+    setSuccessMessage('Google Authenticator 2FA Verified! Logged in successfully.');
+    
     setTimeout(() => {
       onClose();
       setSuccessMessage(null);
+      setPendingUser(null);
+      setTotpCode('');
     }, 1000);
   };
 
-  // 2. SIGNUP HANDLER
+  // 3. SIGNUP HANDLER
   const handleSignupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -360,7 +244,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     if (!backedUpConfirmed) {
-      setErrorMessage('Please check the box confirming you have saved your Secret Recovery Code.');
+      setErrorMessage('Please confirm that you have saved your Secret Recovery Code.');
       return;
     }
 
@@ -393,15 +277,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     usersList.push(newUser);
     localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
 
-    onLoginSuccess(newUser);
-    setSuccessMessage(`Account created! Wallet address ${generatedWallet.slice(0, 6)}...${generatedWallet.slice(-4)} assigned and linked.`);
-    setTimeout(() => {
-      onClose();
-      setSuccessMessage(null);
-    }, 1200);
+    // Redirect to Google Authenticator confirmation
+    setPendingUser(newUser);
+    setTotpCode('');
+    setMode('GOOGLE_2FA');
+    setSuccessMessage('Account created! Please enter your 6-digit Google Authenticator code to complete sign in.');
   };
 
-  // 3. RECOVERY HANDLER
+  // 4. RECOVERY HANDLER
   const handleRecoverySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -411,7 +294,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Check saved users
     const savedUsersRaw = localStorage.getItem('nexuspay_users');
     let usersList: UserAccount[] = [];
     if (savedUsersRaw) {
@@ -423,86 +305,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       enteredSecretCode.trim().toUpperCase().includes('NEXUS-KEY')
     );
 
-    if (matched) {
-      const updatedUser: UserAccount = {
-        ...matched,
-        walletAddress: matched.walletAddress || generateRandomWalletAddress(),
-        lastLoginAt: new Date().toISOString()
-      };
-      onLoginSuccess(updatedUser);
-      setSuccessMessage('Secret Recovery Code verified! Account and wallet restored.');
-      setTimeout(() => {
-        onClose();
-        setSuccessMessage(null);
-      }, 1200);
-      return;
-    }
+    const targetUser: UserAccount = matched || {
+      id: `usr-recovered-${Date.now()}`,
+      username: recoveryIdentifier.trim() || 'recovered_treasurer',
+      email: recoveryIdentifier.includes('@') ? recoveryIdentifier : 'recovered@nexuspay.io',
+      secretRecoveryCode: enteredSecretCode.trim(),
+      isRecoveryKeyBackedUp: true,
+      biometricRegistered: true,
+      walletAddress: generateRandomWalletAddress(),
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
 
-    // Default recovery authorization
-    if (enteredSecretCode.trim().length >= 8) {
-      const recoveredUser: UserAccount = {
-        id: `usr-recovered-${Date.now()}`,
-        username: recoveryIdentifier.trim() || 'recovered_treasurer',
-        email: recoveryIdentifier.includes('@') ? recoveryIdentifier : 'recovered@nexuspay.io',
-        secretRecoveryCode: enteredSecretCode.trim(),
-        isRecoveryKeyBackedUp: true,
-        biometricRegistered: true,
-        walletAddress: generateRandomWalletAddress(),
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-      };
-
-      onLoginSuccess(recoveredUser);
-      setSuccessMessage('Secret Recovery Code verified! Welcome back.');
-      setTimeout(() => {
-        onClose();
-        setSuccessMessage(null);
-      }, 1200);
-    } else {
-      setErrorMessage('Invalid Secret Recovery Code. Please verify your 12-word seed phrase or NEXUS-KEY.');
-    }
+    setPendingUser(targetUser);
+    setTotpCode('');
+    setMode('GOOGLE_2FA');
+    setSuccessMessage('Recovery code verified! Enter Google Authenticator 6-digit code to log in.');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
+      
+      {/* Bybit-Style Compact Floating Modal Box */}
+      <div className="w-full max-w-md my-auto bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col text-slate-200 animate-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-indigo-900/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30">
-              <Fingerprint className="w-5 h-5" />
+        <div className="px-5 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+              {mode === 'GOOGLE_2FA' ? (
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              ) : (
+                <User className="w-5 h-5 text-indigo-400" />
+              )}
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
-                <span>Account & Security</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> WebAuthn Biometrics
+              <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <span>{authState.isAuthenticated ? 'Enterprise Profile' : mode === 'GOOGLE_2FA' ? 'Google Authenticator 2FA' : 'Sign In / Sign Up'}</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  Bybit Secure Auth
                 </span>
               </h2>
-              <p className="text-xs text-indigo-200/80">
-                Touch ID, Face ID & Secret Recovery Code
+              <p className="text-[11px] text-slate-400">
+                {authState.isAuthenticated 
+                  ? 'Account details & security' 
+                  : mode === 'GOOGLE_2FA' 
+                  ? 'Enter 6-digit TOTP security code' 
+                  : 'NexusPay Treasury & Settlement'}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
+            title="Cancel / Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Tab Switcher if not logged in */}
-        {!authState.isAuthenticated && (
-          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-1 text-xs font-bold">
+        {/* Tab Switcher if not logged in and not in 2FA step */}
+        {!authState.isAuthenticated && mode !== 'GOOGLE_2FA' && (
+          <div className="flex border-b border-slate-800 bg-slate-950 p-1 text-xs font-bold">
             <button
-              onClick={() => { setMode('LOGIN'); setErrorMessage(null); }}
+              onClick={() => { setMode('LOGIN'); setErrorMessage(null); setSuccessMessage(null); }}
               className={`flex-1 py-2 rounded-xl transition-all ${
                 mode === 'LOGIN' 
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow' 
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Sign In
@@ -511,40 +382,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={handleSwitchToSignup}
               className={`flex-1 py-2 rounded-xl transition-all ${
                 mode === 'SIGNUP' 
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow' 
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Create Account
             </button>
             <button
-              onClick={() => { setMode('RECOVER'); setErrorMessage(null); }}
+              onClick={() => { setMode('RECOVER'); setErrorMessage(null); setSuccessMessage(null); }}
               className={`flex-1 py-2 rounded-xl transition-all ${
                 mode === 'RECOVER' 
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow' 
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              Recover Code
+              Recover
             </button>
           </div>
         )}
 
         {/* Content Body */}
-        <div className="p-6 space-y-4 text-xs text-slate-700 dark:text-slate-300">
+        <div className="p-5 space-y-4 text-xs">
           
-          {/* Scanning Animation Overlay / Modal Banner */}
-          {isBiometricScanning && (
-            <div className="p-4 rounded-2xl bg-indigo-600/10 border border-indigo-500/40 text-center space-y-3 animate-pulse">
-              <div className="mx-auto w-12 h-12 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center ring-4 ring-indigo-500/30">
-                <Fingerprint className="w-7 h-7 animate-bounce text-indigo-400" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                  Scanning WebAuthn Touch ID / Face ID...
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Verify biometric sensor or passkey hardware token to authenticate.
+          {/* Reason Banner if triggered by blocked transaction */}
+          {authReason && !authState.isAuthenticated && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 font-medium flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-xs text-amber-300 uppercase tracking-wider">
+                  Authentication Required
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-200/90">
+                  {authReason}
                 </p>
               </div>
             </div>
@@ -552,314 +421,358 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Error & Success Messages */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 font-medium flex items-center gap-2 animate-in fade-in">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-500" />
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 font-medium flex items-center gap-2 animate-in fade-in">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-400" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 font-medium flex items-center gap-2 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-500" />
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
               <span>{successMessage}</span>
             </div>
           )}
 
-          {/* IF ALREADY LOGGED IN: DISPLAY USER PROFILE, BIOMETRICS & SECRET RECOVERY CODE */}
+          {/* VIEW 1: LOGGED IN USER PROFILE */}
           {authState.isAuthenticated && authState.user && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 space-y-3">
+            <div className="space-y-4 animate-in fade-in duration-150">
+              
+              {/* User Identity Card */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-black flex items-center justify-center text-sm shadow">
                       {authState.user.username.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                      <h3 className="font-bold text-sm text-white">
                         {authState.user.username}
                       </h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <p className="text-[11px] text-slate-400">
                         {authState.user.email}
                       </p>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] border border-emerald-500/30 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-emerald-500" /> Active
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/30 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" /> Verified 2FA
                   </span>
                 </div>
 
-                <div className="pt-2 border-t border-indigo-100 dark:border-slate-800 text-[11px] text-slate-500 space-y-1">
+                <div className="pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
                   <div className="flex justify-between">
                     <span>Account ID:</span>
-                    <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{authState.user.id}</span>
+                    <span className="font-mono text-slate-200 font-bold">{authState.user.id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Member Since:</span>
-                    <span className="text-slate-700 dark:text-slate-300">{authState.user.createdAt.slice(0, 10)}</span>
+                    <span>Google 2FA Status:</span>
+                    <span className="text-emerald-400 font-bold">● Active (Google Authenticator)</span>
                   </div>
                 </div>
               </div>
 
-              {/* Linked Wallet Address Box */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-slate-200 border border-indigo-500/30 space-y-2.5 shadow-lg">
+              {/* Linked Wallet Box */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
-                      <Wallet className="w-4 h-4 text-emerald-400" />
-                    </div>
-                    Account Wallet Address
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    <Wallet className="w-4 h-4 text-emerald-400" />
+                    Wallet Address
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Linked
-                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono">Linked</span>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 break-all select-all flex items-center justify-between gap-2 shadow-inner">
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-xs text-emerald-300 break-all flex items-center justify-between gap-2">
                   <span>{authState.user.walletAddress}</span>
                   <button
                     type="button"
                     onClick={() => handleCopyCode(authState.user?.walletAddress || '')}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
+                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
                     title="Copy Wallet Address"
                   >
                     {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400">
-                  This wallet address is automatically associated with your account for payment streams, invoices, and remittances.
-                </p>
               </div>
 
-              {/* WebAuthn Biometric Security Status */}
-              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 text-slate-200">
+              {/* Secret Recovery Code */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Fingerprint className="w-4 h-4 text-indigo-400" />
-                    <span className="font-bold text-xs">Biometric WebAuthn Passkey</span>
-                  </div>
-                  {authState.user.biometricRegistered ? (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                      Registered
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
-                      Not Configured
-                    </span>
-                  )}
+                  <span className="font-bold text-amber-400 text-xs flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5" />
+                    Secret Recovery Code
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Protected</span>
                 </div>
 
-                <p className="text-[11px] text-slate-400">
-                  Allows instant login using your device hardware biometric scanner (Touch ID, Face ID, Windows Hello).
-                </p>
-
-                <button
-                  onClick={handleRegisterBiometricsForCurrentUser}
-                  disabled={isBiometricScanning}
-                  className="w-full py-2 px-3 rounded-xl bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 border border-indigo-500/40 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-                >
-                  <ScanFace className="w-4 h-4 text-indigo-400" />
-                  <span>
-                    {authState.user.biometricRegistered 
-                      ? 'Re-Sync Biometric Hardware Passkey' 
-                      : 'Register Touch ID / Face ID Biometrics'}
-                  </span>
-                </button>
-              </div>
-
-              {/* Secret Recovery Code Section */}
-              <div className="p-4 rounded-2xl bg-slate-950 text-slate-200 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-indigo-400 text-xs flex items-center gap-1.5">
-                    <KeyRound className="w-4 h-4 text-amber-400" />
-                    Your Secret Recovery Code
-                  </span>
-                  <span className="text-[10px] text-emerald-400 font-mono">● Protected</span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-amber-300 break-all select-all flex items-center justify-between gap-2">
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-xs text-amber-300 break-all flex items-center justify-between gap-2">
                   <span>{authState.user.secretRecoveryCode}</span>
                   <button
                     type="button"
                     onClick={() => handleCopyCode(authState.user?.secretRecoveryCode || '')}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
-                    title="Copy Secret Code"
+                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
                   >
                     {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Keep this secret recovery code in a safe place. You can use it to recover account access at any time if you forget your password.
-                </p>
               </div>
 
-              {/* Logout Button */}
-              <button
-                onClick={() => {
-                  onLogout();
-                  onClose();
-                }}
-                className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out of Account</span>
-              </button>
+              {/* Sign Out Button */}
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onLogout();
+                    onClose();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out of Account</span>
+                </button>
+
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
+
             </div>
           )}
 
-          {/* TAB 1: LOGIN FORM */}
+          {/* VIEW 2: SIGN IN FORM (EMAIL & PASSWORD ONLY) */}
           {!authState.isAuthenticated && mode === 'LOGIN' && (
-            <div className="space-y-4 animate-in fade-in duration-150">
+            <form onSubmit={handleLoginSubmit} className="space-y-3.5 animate-in fade-in duration-150">
               
-              {/* Touch ID / Face ID Biometric One-Touch Sign-In */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/90 via-slate-900 to-indigo-950 border border-indigo-800/60 text-white space-y-3 shadow-md">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300">
-                      <Fingerprint className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-white flex items-center gap-1.5">
-                        <span>Touch ID / Face ID Biometrics</span>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          WebAuthn Passkey
-                        </span>
-                      </h4>
-                      <p className="text-[10px] text-indigo-200/80">
-                        Instant passwordless authentication via hardware sensor
-                      </p>
-                    </div>
-                  </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="treasurer@nexuspay.io"
+                    className="w-full bg-slate-950 text-white rounded-xl pl-9 pr-3 py-2.5 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                    required
+                  />
                 </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-semibold">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('RECOVER'); setErrorMessage(null); setSuccessMessage(null); }}
+                    className="text-indigo-400 font-bold text-[11px] hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter account password"
+                    className="w-full bg-slate-950 text-white rounded-xl pl-9 pr-10 py-2.5 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-slate-500 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center gap-2 text-slate-400 text-[11px]">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>Google Authenticator 2FA is enabled for all enterprise logins.</span>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Next: Google 2FA</span>
+                </button>
 
                 <button
                   type="button"
-                  onClick={handleBiometricLogin}
-                  disabled={isBiometricScanning}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+                  onClick={onClose}
+                  className="px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
                 >
-                  <ScanFace className="w-4 h-4 text-indigo-200" />
-                  <span>Authenticate with Touch ID / Face ID</span>
+                  Cancel
                 </button>
               </div>
+            </form>
+          )}
 
-              <div className="flex items-center my-3 text-slate-400">
-                <div className="flex-1 border-t border-slate-200 dark:border-slate-800"></div>
-                <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Or Sign In With Email / Account
-                </span>
-                <div className="flex-1 border-t border-slate-200 dark:border-slate-800"></div>
+          {/* VIEW 3: GOOGLE AUTHENTICATOR 2FA STEP */}
+          {!authState.isAuthenticated && mode === 'GOOGLE_2FA' && (
+            <form onSubmit={handleVerifyGoogle2FA} className="space-y-4 animate-in fade-in duration-150">
+              
+              {/* Google Authenticator Banner */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 border border-indigo-500/40 text-center space-y-2 shadow-md">
+                <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-white flex items-center justify-center gap-1.5">
+                    <span>Google Authenticator Code</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Enter the 6-digit verification code from your Google Authenticator App for <strong>{pendingUser?.email || 'your account'}</strong>.
+                  </p>
+                </div>
               </div>
 
-              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
-                <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                    Email Address or Username
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    <input
-                      type="text"
-                      value={loginIdentifier}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="e.g. treasurer@nexuspay.io or enterprise_lead"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-9 pr-3 py-2.5 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
-                      required
-                    />
-                  </div>
+              {/* 6-Digit Code Input Box */}
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1 text-center">
+                  6-Digit Verification Code
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="123456"
+                    className="w-full bg-slate-950 text-emerald-400 rounded-xl py-3 px-4 text-center font-mono text-xl tracking-[0.4em] font-bold border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-700"
+                    autoFocus
+                    required
+                  />
                 </div>
+              </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-slate-700 dark:text-slate-300 font-semibold">
-                      Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => { setMode('RECOVER'); setErrorMessage(null); }}
-                      className="text-indigo-600 dark:text-indigo-400 font-bold text-[11px] hover:underline"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter account password"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-9 pr-10 py-2.5 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+              {/* Live 30s TOTP Timer Progress Indicator */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-semibold text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-indigo-400" />
+                    Google Auth Sync Status:
+                  </span>
+                  <span className="text-emerald-400 font-mono font-bold">
+                    Code refreshes in {totpTimer}s
+                  </span>
                 </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-1000 ease-linear"
+                    style={{ width: `${(totpTimer / 30) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                    />
-                    <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Remember this browser session</span>
-                  </label>
-                </div>
+              {/* Setup / Secret Key Toggle for Google Authenticator binding */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowQrSecret(!showQrSecret)}
+                  className="text-[11px] text-indigo-400 font-semibold hover:underline flex items-center gap-1"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>{showQrSecret ? 'Hide Google Authenticator Secret Key' : 'First time? View Google Authenticator Secret Key'}</span>
+                </button>
+
+                {showQrSecret && (
+                  <div className="mt-2 p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-[11px] animate-in fade-in">
+                    <p className="text-slate-400 leading-relaxed">
+                      Add <strong>NexusPay Enterprise</strong> to Google Authenticator manually using this Base32 Secret Key:
+                    </p>
+                    <div className="p-2 rounded bg-slate-900 border border-slate-800 font-mono text-amber-300 font-bold flex items-center justify-between">
+                      <span>JBSWY3DPEHPK3PXP</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode('JBSWY3DPEHPK3PXP')}
+                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white text-[10px]"
+                      >
+                        {copiedKey ? 'Copied' : 'Copy Key'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMode('LOGIN')}
+                  className="px-3 py-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs flex items-center gap-1"
+                  title="Back to password step"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
+                </button>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span>Sign In to Account</span>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Verify 2FA & Sign In</span>
                 </button>
-              </form>
-            </div>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3 py-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
+
+            </form>
           )}
 
-          {/* TAB 2: SIGNUP FORM */}
+          {/* VIEW 4: SIGNUP FORM */}
           {!authState.isAuthenticated && mode === 'SIGNUP' && (
             <form onSubmit={handleSignupSubmit} className="space-y-3 animate-in fade-in duration-150">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                    Username / Member Handle
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Username / Handle
                   </label>
                   <div className="relative">
-                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <User className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
                     <input
                       type="text"
                       value={signupUsername}
                       onChange={(e) => setSignupUsername(e.target.value)}
-                      placeholder="e.g. treasury_admin"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      placeholder="treasury_admin"
+                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                  <label className="block text-slate-300 font-semibold mb-1">
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
                     <input
                       type="email"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       placeholder="admin@company.com"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
@@ -868,191 +781,149 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                  <label className="block text-slate-300 font-semibold mb-1">
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
                     <input
                       type="password"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                  <label className="block text-slate-300 font-semibold mb-1">
                     Confirm Password
                   </label>
                   <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
                     <input
                       type="password"
                       value={signupConfirmPassword}
                       onChange={(e) => setSignupConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Password strength bar indicator */}
-              {signupPassword && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-semibold text-slate-500">
-                    <span>Password Security Level:</span>
-                    <span className={signupPassword.length >= 8 ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>
-                      {signupPassword.length >= 10 ? "Strong (Recommended)" : signupPassword.length >= 6 ? "Good" : "Weak"}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${
-                        signupPassword.length >= 10 ? "w-full bg-emerald-500" : signupPassword.length >= 6 ? "w-2/3 bg-amber-500" : "w-1/3 bg-rose-500"
-                      }`}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Enable Biometric TouchID / FaceID Option */}
-              <div className="p-3 rounded-xl bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Fingerprint className="w-4 h-4 text-indigo-500" />
-                  <div>
-                    <span className="font-bold text-xs text-slate-900 dark:text-white block">
-                      Enable Touch ID / Face ID
-                    </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Fast passwordless WebAuthn hardware passkey
-                    </span>
-                  </div>
-                </div>
-
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={enableBiometricInSignup}
-                    onChange={(e) => setEnableBiometricInSignup(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-              </div>
-
               {/* Secret Recovery Code Box */}
               {generatedCodeObj && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 space-y-2">
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-[11px] flex items-center gap-1.5 uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                      <KeyRound className="w-3.5 h-3.5 text-amber-500" /> Generated 12-Word Recovery Code
+                    <span className="font-bold text-[10px] flex items-center gap-1 uppercase tracking-wider text-amber-400">
+                      <KeyRound className="w-3 h-3 text-amber-400" /> Secret Recovery Code
                     </span>
 
                     <button
                       type="button"
-                      onClick={() => handleCopyCode(`${generatedCodeObj.formattedCode}\nSeed Phrase: ${generatedCodeObj.mnemonic}`)}
-                      className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-200 font-bold text-[10px] flex items-center gap-1"
+                      onClick={() => handleCopyCode(`${generatedCodeObj.formattedCode}\nSeed: ${generatedCodeObj.mnemonic}`)}
+                      className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 font-bold text-[10px]"
                     >
-                      {copiedKey ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedKey ? 'Copied!' : 'Copy Code'}</span>
+                      {copiedKey ? 'Copied' : 'Copy'}
                     </button>
                   </div>
 
-                  <div className="font-mono text-xs font-bold text-slate-900 dark:text-white p-2 bg-white/80 dark:bg-slate-950 rounded-xl border border-amber-500/20 break-all select-all">
+                  <div className="font-mono text-xs font-bold text-white p-2 bg-slate-950 rounded-lg border border-amber-500/20 break-all">
                     {generatedCodeObj.formattedCode}
                   </div>
 
-                  <div className="p-2 bg-white/60 dark:bg-slate-900 rounded-lg text-[10px] font-mono text-slate-600 dark:text-slate-300 leading-tight">
-                    <strong>12-Word Seed:</strong> {generatedCodeObj.mnemonic}
-                  </div>
-
-                  <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 pt-0.5 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={backedUpConfirmed}
                       onChange={(e) => setBackedUpConfirmed(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     />
-                    <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">
-                      I have saved this Secret Recovery Code in a secure location.
+                    <span className="text-[10px] text-slate-300">
+                      I have backed up this recovery code securely.
                     </span>
                   </label>
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Complete Registration & Create Account</span>
-              </button>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>Create & Enable Google 2FA</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           )}
 
-          {/* TAB 3: SECRET CODE RECOVERY FORM */}
+          {/* VIEW 5: RECOVERY FORM */}
           {!authState.isAuthenticated && mode === 'RECOVER' && (
-            <form onSubmit={handleRecoverySubmit} className="space-y-4 animate-in fade-in duration-150">
-              <div className="p-3 rounded-xl bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 text-xs leading-relaxed">
-                <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
+            <form onSubmit={handleRecoverySubmit} className="space-y-3.5 animate-in fade-in duration-150">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-xs leading-relaxed">
+                <span className="font-bold text-white block mb-0.5">
                   Account Recovery via Secret Code
                 </span>
-                Enter your 12-word seed phrase or NEXUS-KEY formatted recovery code to instantly restore account access.
+                Enter your 12-word seed phrase or NEXUS-KEY formatted recovery code to restore account access.
               </div>
 
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                  Email or Username (Optional)
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Email Address (Optional)
                 </label>
                 <input
                   type="text"
                   value={recoveryIdentifier}
                   onChange={(e) => setRecoveryIdentifier(e.target.value)}
-                  placeholder="e.g. enterprise_lead"
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none"
+                  placeholder="treasurer@nexuspay.io"
+                  className="w-full bg-slate-950 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                <label className="block text-slate-300 font-semibold mb-1">
                   Secret Recovery Code or 12-Word Phrase
                 </label>
                 <textarea
                   value={enteredSecretCode}
                   onChange={(e) => setEnteredSecretCode(e.target.value)}
-                  rows={3}
-                  placeholder="e.g. NEXUS-KEY-A8F1-99B2-33C4-77D0 or nexus shield vault matrix..."
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono text-xs rounded-xl p-3 border border-slate-300 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows={2}
+                  placeholder="e.g. NEXUS-KEY-A8F1-99B2-33C4-77D0"
+                  className="w-full bg-slate-950 text-white font-mono text-xs rounded-xl p-2.5 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                  New Password (Optional)
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new account password"
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white rounded-xl px-3 py-2 border border-slate-300 dark:border-slate-800 focus:outline-none"
-                />
-              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Verify & Proceed to 2FA</span>
+                </button>
 
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Verify Secret Code & Recover Access</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           )}
 

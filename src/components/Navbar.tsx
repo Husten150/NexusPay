@@ -173,29 +173,32 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* User Account / Auth Button */}
+          {/* User Account / Profile Button */}
           <button
             onClick={onOpenAuthModal}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-sm active:scale-95 ${
+            title={authState.isAuthenticated ? "View User Profile & Account Details" : "Open Profile Sign In / Sign Up"}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-sm active:scale-95 ${
               authState.isAuthenticated
                 ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
-                : 'bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-slate-700 hover:bg-indigo-100'
+                : 'bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-slate-700 hover:bg-indigo-100 dark:hover:bg-slate-700'
             }`}
           >
             {authState.isAuthenticated ? (
               <>
-                <KeyRound className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                <span className="hidden sm:inline font-semibold">{authState.user?.username}</span>
-                <span className="hidden md:inline-block px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">
+                <User className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span className="hidden sm:inline">
+                  Profile: <strong className="text-slate-900 dark:text-white">{authState.user?.username}</strong>
+                </span>
+                <span className="hidden md:inline-block px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">
                   {((authState.user?.walletAddress || wallet.address)).slice(0, 5)}...{((authState.user?.walletAddress || wallet.address)).slice(-4)}
                 </span>
-                <span className="sm:hidden font-semibold">Account</span>
+                <span className="sm:hidden font-semibold">Profile</span>
               </>
             ) : (
               <>
-                <LogIn className="w-3.5 h-3.5 text-indigo-500" />
+                <User className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                 <span className="hidden sm:inline">Sign In / Sign Up</span>
-                <span className="sm:hidden">Login</span>
+                <span className="sm:hidden">Sign In</span>
               </>
             )}
           </button>

@@ -97,6 +97,7 @@ export default function App() {
   const [showSubmissionHubModal, setShowSubmissionHubModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPwaModal, setShowPwaModal] = useState(false);
+  const [authReason, setAuthReason] = useState<string | undefined>(undefined);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Authentication State
@@ -384,6 +385,13 @@ export default function App() {
 
   // Stream Handlers
   const handleAddStream = (newStream: PaymentStream) => {
+    if (!authState.isAuthenticated) {
+      setAuthReason('Creating a payroll stream requires signing in to an account.');
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     setStreams((prev) => [newStream, ...prev]);
     
     const newLog: TransactionAuditLog = {
@@ -411,6 +419,13 @@ export default function App() {
 
   // Invoice Handlers
   const handleAddInvoice = (newInv: MerchantInvoice) => {
+    if (!authState.isAuthenticated) {
+      setAuthReason('Issuing merchant invoices requires signing in to an account.');
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     setInvoices((prev) => [newInv, ...prev]);
     showToast(`Issued Web3 Invoice ${newInv.invoiceNumber}`);
   };
@@ -449,6 +464,13 @@ export default function App() {
 
   // Remittance Handler
   const handleExecuteRemittance = (quote: RemittanceQuote) => {
+    if (!authState.isAuthenticated) {
+      setAuthReason('Sending cross-border remittances requires signing in to an account.');
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     setRemittances((prev) => [quote, ...prev]);
     setWallet((w) => ({
       ...w,
@@ -474,12 +496,28 @@ export default function App() {
 
   // Yield Position Handler
   const handleAddYieldPosition = (pos: YieldPosition) => {
+    if (!authState.isAuthenticated) {
+      setAuthReason('Depositing into AI Yield Vaults requires signing in to an account.');
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     setYieldPositions((prev) => [pos, ...prev]);
     showToast(`Deposited $${pos.depositedAmountUsd.toLocaleString()} into ${pos.protocol}`);
   };
 
   // AI Agent Action Executor
   const handleExecuteAgentIntent = (intent: AgentActionIntent) => {
+    const requiresAuth = ['PAYROLL_STREAM', 'INSTANT_TRANSFER', 'CREATE_INVOICE', 'CROSS_BORDER_REMITTANCE', 'YIELD_DEPOSIT'].includes(intent.actionType);
+
+    if (requiresAuth && !authState.isAuthenticated) {
+      setAuthReason(`AI execution of ${intent.actionType.replace(/_/g, ' ').toLowerCase()} requires signing in to an account.`);
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     if (intent.actionType === 'PAYROLL_STREAM' && intent.parameters.recipientName) {
       const newStream: PaymentStream = {
         id: `str-${Date.now().toString().slice(-4)}`,
@@ -560,7 +598,7 @@ export default function App() {
         onOpenWalletModal={() => setShowWalletModal(true)}
         onOpenTransferModal={() => setShowTransferModal(true)}
         onOpenReceiveModal={() => setShowReceiveModal(true)}
-        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenAuthModal={() => { setAuthReason(undefined); setShowAuthModal(true); }}
         onOpenPwaModal={() => setShowPwaModal(true)}
         onSelectChain={handleSelectChain}
         agentActive={true}
@@ -572,7 +610,7 @@ export default function App() {
         <AgentCommandCenter
           wallet={wallet}
           authState={authState}
-          onOpenAuthModal={() => setShowAuthModal(true)}
+          onOpenAuthModal={() => { setAuthReason(undefined); setShowAuthModal(true); }}
           onExecuteIntent={handleExecuteAgentIntent}
         />
 
@@ -765,10 +803,14 @@ export default function App() {
       {/* Authentication & Secret Code Recovery Modal */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={() => {
+          setShowAuthModal(false);
+          setAuthReason(undefined);
+        }}
         authState={authState}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
+        authReason={authReason}
       />
 
       {/* PWA Standalone App Installer Modal */}
