@@ -176,22 +176,13 @@ export default function App() {
   // Authentication State
   const [authState, setAuthState] = useState<AuthState>(() => {
     const savedAuth = loadSavedState('auth_state', null);
-    if (savedAuth && savedAuth.user) {
+    if (savedAuth && savedAuth.user && savedAuth.isAuthenticated) {
       return savedAuth;
     }
-    // Default active logged in user session
+    // Default: Unauthenticated public homepage on entering URL
     return {
-      isAuthenticated: true,
-      user: {
-        id: 'usr-01',
-        username: 'enterprise_treasurer',
-        email: 'treasury@nexuspay.io',
-        secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00 (nexus shield vault matrix orbital stellar horizon beacon cipher quantum solstice zenith)',
-        isRecoveryKeyBackedUp: true,
-        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-        createdAt: '2026-08-01T12:00:00.000Z',
-        lastLoginAt: new Date().toISOString(),
-      }
+      isAuthenticated: false,
+      user: null
     };
   });
 
@@ -792,6 +783,9 @@ export default function App() {
               auditLogs={auditLogs}
               yieldPositions={yieldPositions}
               onNavigateTab={(tab: any) => handleTabChange(tab)}
+              authState={authState}
+              onOpenAuthModal={handleOpenAuthModal}
+              onOpenWalletModal={handleOpenWalletModal}
             />
           )}
 

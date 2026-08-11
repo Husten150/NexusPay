@@ -22,7 +22,8 @@ import {
   Smartphone, 
   Wallet,
   QrCode,
-  ArrowLeft
+  ArrowLeft,
+  Zap
 } from 'lucide-react';
 import { UserAccount, AuthState } from '../types';
 
@@ -621,6 +622,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
                 >
                   Cancel
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const demoUser: UserAccount = {
+                      id: 'usr-01',
+                      username: 'enterprise_treasurer',
+                      email: 'treasury@nexuspay.io',
+                      secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00 (nexus shield vault matrix orbital stellar horizon beacon cipher quantum solstice zenith)',
+                      isRecoveryKeyBackedUp: true,
+                      walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+                      createdAt: '2026-08-01T12:00:00.000Z',
+                      lastLoginAt: new Date().toISOString(),
+                    };
+                    onLoginSuccess(demoUser);
+                    onClose();
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 text-emerald-400" />
+                  <span>1-Click Instant Demo Login</span>
                 </button>
               </div>
             </form>

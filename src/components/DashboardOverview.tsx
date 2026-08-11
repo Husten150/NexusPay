@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
+import { AuthState } from '../types';
+
 interface DashboardOverviewProps {
   wallet: WalletState;
   streams: PaymentStream[];
@@ -28,6 +30,9 @@ interface DashboardOverviewProps {
   auditLogs: TransactionAuditLog[];
   yieldPositions: YieldPosition[];
   onNavigateTab: (tab: string) => void;
+  authState?: AuthState;
+  onOpenAuthModal?: () => void;
+  onOpenWalletModal?: () => void;
 }
 
 const TREASURY_CHART_DATA = [
@@ -46,6 +51,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   auditLogs,
   yieldPositions,
   onNavigateTab,
+  authState,
+  onOpenAuthModal,
+  onOpenWalletModal,
 }) => {
   const [coinSearch, setCoinSearch] = useState('');
 
@@ -59,6 +67,46 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
   return (
     <div className="space-y-6">
+      
+      {/* Guest Welcome Homepage Banner when not signed in */}
+      {!authState?.isAuthenticated && (
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-xl space-y-4 relative overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                <span>NexusPay Enterprise Web3 Financial Protocol</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                Multi-Chain Treasury, Payroll & Global Settlement
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Seamlessly manage enterprise web3 balances across Polygon, Solana, Bitcoin, Stellar, Tron, and EVM networks. Stream real-time payroll, issue crypto invoices, and earn automated yield.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+              {onOpenAuthModal && (
+                <button
+                  onClick={onOpenAuthModal}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all active:scale-95"
+                >
+                  Sign In / Register
+                </button>
+              )}
+              {onOpenWalletModal && (
+                <button
+                  onClick={onOpenWalletModal}
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs shadow-md transition-all active:scale-95"
+                >
+                  Connect Web3 Wallet
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
