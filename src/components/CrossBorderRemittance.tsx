@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RemittanceQuote, WalletState, SupportedChain } from '../types';
+import { RemittanceQuote, WalletState, SupportedChain, AuthState } from '../types';
 import { ALL_COINS, getCoinInfo } from '../data/coinCatalog';
 import { 
   Globe, 
@@ -12,12 +12,15 @@ import {
   DollarSign,
   ShieldCheck,
   Smartphone,
-  Landmark
+  Landmark,
+  Lock
 } from 'lucide-react';
 
 interface CrossBorderRemittanceProps {
   quotes: RemittanceQuote[];
   wallet: WalletState;
+  authState: AuthState;
+  onOpenAuthModal: () => void;
   onExecuteRemittance: (quote: RemittanceQuote) => void;
 }
 
@@ -72,6 +75,8 @@ const GLOBAL_COUNTRIES: CountryData[] = [
 export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
   quotes,
   wallet,
+  authState,
+  onOpenAuthModal,
   onExecuteRemittance,
 }) => {
   const [sourceAmount, setSourceAmount] = useState('1000');
@@ -82,6 +87,7 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
   const [recipientName, setRecipientName] = useState('David Ochieng');
   const [recipientAccount, setRecipientAccount] = useState('+254712345678');
   const [executingId, setExecutingId] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Filter countries
   const filteredCountries = GLOBAL_COUNTRIES.filter((c) => {
@@ -102,6 +108,11 @@ export const CrossBorderRemittance: React.FC<CrossBorderRemittanceProps> = ({
   const savings = Math.max(0, tradFee - web3Fee);
 
   const handleSendRemittance = () => {
+    if (!authState.isAuthenticated) {
+      setAuthError('🔒 Authentication Required: Please sign in or create an account to send cross-border remittances.');
+      onOpenAuthModal();
+      return;
+    }
     const newQuote: RemittanceQuote = {
       id: `rem-${Date.now().toString().slice(-4)}`,
       sourceCurrency: `${selectedSourceCoin}`,

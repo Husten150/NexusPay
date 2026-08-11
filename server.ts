@@ -36,7 +36,7 @@ app.get('/api/health', (req, res) => {
  */
 app.post('/api/agent/intent', async (req, res) => {
   try {
-    const { prompt, userWallet, selectedChain } = req.body;
+    const { prompt, userWallet, userName, userEmail, selectedChain } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -44,7 +44,9 @@ app.post('/api/agent/intent', async (req, res) => {
 
     const systemInstruction = `
 You are NexusPay AI, an advanced agentic Web3 financial assistant and smart treasury optimizer.
-Your goal is to parse natural language user prompts related to crypto payments, payroll streams, invoice creation, treasury swaps, cross-border remittances, or security audits, and convert them into structured Web3 transaction intents.
+Your goal is to parse natural language user prompts related to crypto payments, payroll streams, invoice creation, treasury swaps, cross-border remittances, or security audits, and convert them into structured Web3 transaction intents based on the user's LIVE active account.
+
+When generating parameter fields (e.g. merchantName, senderName, wallet address), ALWAYS prioritize using the user's live logged-in account information provided in the context unless a specific external third party recipient is explicitly named in the prompt. Do NOT use fake demo names like "Alex Rivera" if the user prompt refers to their own account or payroll.
 
 Evaluate the user's intent, assign a security risk rating ('SAFE', 'WARNING', or 'CRITICAL'), estimate network gas in USD, generate clear step-by-step confirmation details, and construct simulated smart contract parameters.
 
@@ -82,7 +84,7 @@ Always reply with valid JSON following this schema:
 }
 `;
 
-    const userMessage = `Context: User wallet is ${userWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'} on network ${selectedChain || 'Ethereum Mainnet'}. Prompt: "${prompt}"`;
+    const userMessage = `Live Account Context: Logged-in Username: "${userName || 'Treasury User'}", User Email: "${userEmail || 'user@nexuspay.io'}", Live Wallet Address: "${userWallet || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'}" on network "${selectedChain || 'Ethereum Mainnet'}". User Prompt: "${prompt}"`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',

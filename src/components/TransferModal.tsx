@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WalletState, SupportedChain, TransactionAuditLog } from '../types';
+import { WalletState, SupportedChain, TransactionAuditLog, AuthState } from '../types';
 import { ALL_COINS, getCoinInfo, convertCoinToUsd } from '../data/coinCatalog';
 import { 
   Send, 
@@ -16,13 +16,16 @@ import {
   RefreshCw,
   Gauge,
   Flame,
-  Coins
+  Coins,
+  Lock
 } from 'lucide-react';
 
 interface TransferModalProps {
   isOpen: boolean;
   onClose: () => void;
   wallet: WalletState;
+  authState: AuthState;
+  onOpenAuthModal: () => void;
   onCompleteTransfer: (amount: number, token: string, recipient: string, txHash: string) => void;
 }
 
@@ -54,6 +57,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   isOpen,
   onClose,
   wallet,
+  authState,
+  onOpenAuthModal,
   onCompleteTransfer,
 }) => {
   const [recipient, setRecipient] = useState('');
@@ -128,6 +133,12 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   };
 
   const handleExecuteTransfer = async () => {
+    if (!authState.isAuthenticated) {
+      setErrorMessage('🔒 Authentication Required: You must be signed in to execute Web3 transactions.');
+      onOpenAuthModal();
+      return;
+    }
+
     if (!recipient || numericAmount <= 0) {
       setErrorMessage('Please provide a valid recipient address and amount.');
       return;

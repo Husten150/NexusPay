@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MerchantInvoice, InvoiceItem, WalletState } from '../types';
+import { MerchantInvoice, InvoiceItem, WalletState, AuthState } from '../types';
 import { ALL_COINS } from '../data/coinCatalog';
 import { 
   FileText, 
@@ -16,12 +16,15 @@ import {
   DollarSign,
   ArrowUpRight,
   Receipt,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 
 interface InvoiceGatewayProps {
   invoices: MerchantInvoice[];
   wallet: WalletState;
+  authState: AuthState;
+  onOpenAuthModal: () => void;
   onAddInvoice: (invoice: MerchantInvoice) => void;
   onMarkInvoicePaid: (id: string) => void;
 }
@@ -29,12 +32,15 @@ interface InvoiceGatewayProps {
 export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
   invoices,
   wallet,
+  authState,
+  onOpenAuthModal,
   onAddInvoice,
   onMarkInvoicePaid,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // AI Parser state
   const [rawAiText, setRawAiText] = useState('');
@@ -74,17 +80,26 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
 
   const handleCreateInvoice = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!authState.isAuthenticated) {
+      setAuthError('🔒 Authentication Required: You must be signed in to issue merchant Web3 invoices.');
+      onOpenAuthModal();
+      return;
+    }
+
     if (!clientName || !clientWallet) return;
 
     const subtotalUsd = items.reduce((acc, curr) => acc + curr.totalUsd, 0);
+    const activeMerchantAddress = authState.user?.walletAddress || wallet.address;
+    const activeMerchantName = authState.user?.username || 'NexusPay AI Enterprise';
 
     const newInvoice: MerchantInvoice = {
       id: `inv-${Date.now().toString().slice(-4)}`,
       invoiceNumber: `NEX-2026-${Math.floor(100 + Math.random() * 900)}`,
       clientName,
       clientWallet,
-      merchantName: 'NexusPay AI Enterprise',
-      merchantWallet: wallet.address,
+      merchantName: activeMerchantName,
+      merchantWallet: activeMerchantAddress,
       items,
       subtotalUsd,
       taxUsd: 0,
@@ -94,7 +109,7 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
       status: 'PENDING',
       dueDate,
       createdAt: new Date().toISOString().split('T')[0],
-      qrPayload: `ethereum:${wallet.address}@137/pay?value=${subtotalUsd}&token=${paymentToken}`,
+      qrPayload: `ethereum:${activeMerchantAddress}@137/pay?value=${subtotalUsd}&token=${paymentToken}`,
     };
 
     onAddInvoice(newInvoice);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PaymentStream, WalletState } from '../types';
+import { PaymentStream, WalletState, AuthState } from '../types';
 import { ALL_COINS } from '../data/coinCatalog';
 import { 
   Play, 
@@ -16,12 +16,15 @@ import {
   Sparkles,
   Bot,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 
 interface PayrollAndStreamsProps {
   streams: PaymentStream[];
   wallet: WalletState;
+  authState: AuthState;
+  onOpenAuthModal: () => void;
   onAddStream: (stream: PaymentStream) => void;
   onToggleStreamStatus: (id: string, newStatus: 'ACTIVE' | 'PAUSED' | 'CANCELLED') => void;
 }
@@ -29,10 +32,13 @@ interface PayrollAndStreamsProps {
 export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
   streams,
   wallet,
+  authState,
+  onOpenAuthModal,
   onAddStream,
   onToggleStreamStatus,
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // Form State
   const [recipientName, setRecipientName] = useState('');
@@ -67,6 +73,13 @@ export const PayrollAndStreams: React.FC<PayrollAndStreamsProps> = ({
 
   const handleCreateStream = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!authState.isAuthenticated) {
+      setAuthError('🔒 Authentication Required: Please sign in or create an account to start streaming payroll.');
+      onOpenAuthModal();
+      return;
+    }
+
     if (!recipientName || !recipientAddress || !amount) return;
 
     const newStream: PaymentStream = {

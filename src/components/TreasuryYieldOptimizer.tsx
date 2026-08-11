@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { YieldPosition, WalletState } from '../types';
+import { YieldPosition, WalletState, AuthState } from '../types';
 import { 
   PiggyBank, 
   TrendingUp, 
@@ -10,24 +10,33 @@ import {
   RefreshCw, 
   ArrowUpRight, 
   Layers, 
-  CheckCircle2
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 
 interface TreasuryYieldOptimizerProps {
   positions: YieldPosition[];
   wallet: WalletState;
+  authState: AuthState;
+  onOpenAuthModal: () => void;
   onAddPosition: (pos: YieldPosition) => void;
 }
 
 export const TreasuryYieldOptimizer: React.FC<TreasuryYieldOptimizerProps> = ({
   positions,
   wallet,
+  authState,
+  onOpenAuthModal,
   onAddPosition,
 }) => {
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiStrategy, setAiStrategy] = useState<any | null>(null);
 
   const handleConsultAiYieldAdvisor = async () => {
+    if (!authState.isAuthenticated) {
+      onOpenAuthModal();
+      return;
+    }
     setLoadingAi(true);
     try {
       const res = await fetch('/api/agent/yield-strategy', {
@@ -65,6 +74,11 @@ export const TreasuryYieldOptimizer: React.FC<TreasuryYieldOptimizerProps> = ({
   };
 
   const handleApplyAiAllocation = (alloc: any) => {
+    if (!authState.isAuthenticated) {
+      onOpenAuthModal();
+      return;
+    }
+
     const newPos: YieldPosition = {
       id: `yld-${Date.now().toString().slice(-4)}`,
       protocol: alloc.protocol,

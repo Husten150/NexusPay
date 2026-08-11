@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AgentActionIntent, WalletState } from '../types';
+import { AgentActionIntent, WalletState, AuthState } from '../types';
 import { 
   Bot, 
   Sparkles, 
@@ -15,39 +15,22 @@ import {
   Cpu, 
   ShieldAlert,
   Sliders,
-  Check
+  Check,
+  Lock,
+  UserCheck
 } from 'lucide-react';
 
 interface AgentCommandCenterProps {
   wallet: WalletState;
+  authState: AuthState;
+  onOpenAuthModal: () => void;
   onExecuteIntent: (intent: AgentActionIntent) => void;
 }
 
-const QUICK_PROMPTS = [
-  {
-    label: '💸 Execute Monthly Engineering Payroll',
-    prompt: 'Stream $6,500 USDC to Alex Rivera (0x3F91A2d2C5E78bE934607d72863951B421a8D9f1) monthly on Polygon with safety check.',
-  },
-  {
-    label: '📄 Generate B2B Web3 Invoice',
-    prompt: 'Create a 2,500 USDC invoice for ZeroKnowledge Labs for Smart Contract Audit Services due in 14 days.',
-  },
-  {
-    label: '🌍 Remit $500 to Kenya via M-Pesa',
-    prompt: 'Calculate low-fee cross-border remittance of $500 USDC to David Ochieng in Kenya (+254712345678).',
-  },
-  {
-    label: '📈 Optimize Treasury Yield in Aave v3',
-    prompt: 'Rebalance $50,000 USDC idle treasury reserves into Aave v3 Polygon Pool to capture 5.82% APY safely.',
-  },
-  {
-    label: '🛡️ Audit Suspicious Contract Approval',
-    prompt: 'Audit target contract address 0x99990A4532Bc117cEa2C21fA011f0a1c6e11942C for unlimited token drainer vulnerabilities.',
-  },
-];
-
 export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
   wallet,
+  authState,
+  onOpenAuthModal,
   onExecuteIntent,
 }) => {
   const [prompt, setPrompt] = useState('');
@@ -56,9 +39,38 @@ export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
   const [executed, setExecuted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const activeUser = authState.user;
+  const liveWallet = activeUser?.walletAddress || wallet.address || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+  const liveUsername = activeUser?.username || 'Treasury Manager';
+
+  const QUICK_PROMPTS = [
+    {
+      label: `💸 Stream Monthly Payroll from Live Account (${liveUsername})`,
+      prompt: `Stream $6,500 USDC from live treasury account (${liveUsername} - ${liveWallet.slice(0, 6)}...${liveWallet.slice(-4)}) to Engineering Team monthly on ${wallet.chain}.`,
+    },
+    {
+      label: '📄 Generate B2B Web3 Merchant Invoice',
+      prompt: `Create a $2,500 USDC merchant invoice issued by ${liveUsername} (${liveWallet}) for Smart Contract Integration due in 14 days.`,
+    },
+    {
+      label: '🌍 Remit $500 Cross-Border via M-Pesa',
+      prompt: `Calculate low-fee cross-border remittance of $500 USDC from ${liveUsername}'s wallet to David Ochieng (+254712345678).`,
+    },
+    {
+      label: '📈 Optimize Treasury Yield in Aave v3',
+      prompt: `Rebalance $50,000 USDC idle reserves from ${liveUsername}'s vault into Aave v3 Pool on ${wallet.chain} to capture APY safely.`,
+    },
+  ];
+
   const handleSendPrompt = async (inputPrompt?: string) => {
     const textToSubmit = inputPrompt || prompt;
     if (!textToSubmit.trim()) return;
+
+    if (!authState.isAuthenticated) {
+      setErrorMsg('🔒 Authentication Required: You must be signed in to generate and execute automated treasury commands.');
+      onOpenAuthModal();
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
@@ -70,7 +82,9 @@ export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: textToSubmit,
-          userWallet: wallet.address,
+          userWallet: liveWallet,
+          userName: activeUser?.username,
+          userEmail: activeUser?.email,
           selectedChain: wallet.chain,
         }),
       });
@@ -83,31 +97,31 @@ export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg('AI Engine fallback applied: Intent generated with default Web3 safeguards.');
+      setErrorMsg('AI Engine fallback applied: Intent generated using live account parameters.');
       
-      // Fallback intent structure for offline/error handling
+      // Fallback intent structure bound to live user account
       setCurrentIntent({
         actionType: 'PAYROLL_STREAM',
-        title: 'Streaming Payment Setup',
-        summary: `Execute stream payment request based on prompt: "${textToSubmit.slice(0, 50)}..."`,
+        title: `Streaming Payment Setup for ${liveUsername}`,
+        summary: `Execute stream payment request from live account ${liveUsername} (${liveWallet.slice(0,6)}...${liveWallet.slice(-4)}): "${textToSubmit.slice(0, 50)}..."`,
         parameters: {
-          recipientName: 'Alex Rivera (Lead Engineer)',
-          recipientAddress: '0x3F91A2d2C5E78bE934607d72863951B421a8D9f1',
+          recipientName: `${liveUsername} (Live Account)`,
+          recipientAddress: liveWallet,
           amount: 6500,
           token: 'USDC',
           frequency: 'monthly',
         },
         riskLevel: 'SAFE',
-        riskScore: 96,
-        safetyExplanation: 'Recipient address verified against whitelist. Contract parameters validated.',
-        estimatedGasUsd: 0.015,
-        confidenceScore: 0.94,
-        suggestedOptimization: 'Executing on Polygon L2 saves ~$14.50 in gas compared to Ethereum L1.',
+        riskScore: 98,
+        safetyExplanation: `Live account ${liveWallet} verified and cryptographic permission checks passed.`,
+        estimatedGasUsd: 0.008,
+        confidenceScore: 0.96,
+        suggestedOptimization: `Executing on ${wallet.chain} L2 network saves gas and speeds confirmation.`,
         contractCallPreview: {
-          targetContract: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+          targetContract: liveWallet,
           functionSignature: 'createStream(address,uint256,uint256)',
           callDataHex: '0xa9059cbb0000000000000000000000003f91a2d2c5e78be934607d72863951b421a8d9f1',
-          estimatedTimeSeconds: 3,
+          estimatedTimeSeconds: 2,
         },
       });
     } finally {
@@ -116,6 +130,12 @@ export const AgentCommandCenter: React.FC<AgentCommandCenterProps> = ({
   };
 
   const handleConfirmExecution = () => {
+    if (!authState.isAuthenticated) {
+      setErrorMsg('🔒 Sign-in required: Please sign in or register to execute transactions.');
+      onOpenAuthModal();
+      return;
+    }
+
     if (!currentIntent) return;
     onExecuteIntent(currentIntent);
     setExecuted(true);

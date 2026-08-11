@@ -10,7 +10,8 @@ import {
   Bot,
   User,
   KeyRound,
-  LogIn
+  LogIn,
+  Download
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -20,6 +21,7 @@ interface NavbarProps {
   onOpenTransferModal: () => void;
   onOpenReceiveModal: () => void;
   onOpenAuthModal: () => void;
+  onOpenPwaModal?: () => void;
   onSelectChain: (chain: SupportedChain) => void;
   agentActive: boolean;
 }
@@ -45,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTransferModal,
   onOpenReceiveModal,
   onOpenAuthModal,
+  onOpenPwaModal,
   onSelectChain,
   agentActive,
 }) => {
@@ -156,6 +159,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             </span>
           </button>
+
+          {/* Download App / Install PWA Button */}
+          {onOpenPwaModal && (
+            <button
+              onClick={onOpenPwaModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-sm transition-all active:scale-95 border border-purple-400/30"
+              title="Download & Install NexusPay App"
+            >
+              <Download className="w-3.5 h-3.5 animate-bounce text-purple-200" />
+              <span className="hidden lg:inline">Download App</span>
+              <span className="lg:hidden">App</span>
+            </button>
+          )}
 
           {/* User Account / Auth Button */}
           <button

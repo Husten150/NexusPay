@@ -36,6 +36,7 @@ import { TransferModal } from './components/TransferModal';
 import { ReceiveModal } from './components/ReceiveModal';
 import { SubmissionHubModal } from './components/SubmissionHubModal';
 import { AuthModal } from './components/AuthModal';
+import { PwaInstallModal } from './components/PwaInstallModal';
 
 import { 
   LayoutDashboard, 
@@ -57,6 +58,7 @@ export default function App() {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showSubmissionHubModal, setShowSubmissionHubModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPwaModal, setShowPwaModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Authentication State
@@ -515,6 +517,7 @@ export default function App() {
         onOpenTransferModal={() => setShowTransferModal(true)}
         onOpenReceiveModal={() => setShowReceiveModal(true)}
         onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenPwaModal={() => setShowPwaModal(true)}
         onSelectChain={handleSelectChain}
         agentActive={true}
       />
@@ -524,6 +527,8 @@ export default function App() {
         {/* Persistent AI Command Center Bar */}
         <AgentCommandCenter
           wallet={wallet}
+          authState={authState}
+          onOpenAuthModal={() => setShowAuthModal(true)}
           onExecuteIntent={handleExecuteAgentIntent}
         />
 
@@ -624,6 +629,8 @@ export default function App() {
             <PayrollAndStreams
               streams={streams}
               wallet={wallet}
+              authState={authState}
+              onOpenAuthModal={() => setShowAuthModal(true)}
               onAddStream={handleAddStream}
               onToggleStreamStatus={handleToggleStreamStatus}
             />
@@ -633,6 +640,8 @@ export default function App() {
             <InvoiceGateway
               invoices={invoices}
               wallet={wallet}
+              authState={authState}
+              onOpenAuthModal={() => setShowAuthModal(true)}
               onAddInvoice={handleAddInvoice}
               onMarkInvoicePaid={handleMarkInvoicePaid}
             />
@@ -642,6 +651,8 @@ export default function App() {
             <CrossBorderRemittance
               quotes={remittances}
               wallet={wallet}
+              authState={authState}
+              onOpenAuthModal={() => setShowAuthModal(true)}
               onExecuteRemittance={handleExecuteRemittance}
             />
           )}
@@ -650,6 +661,8 @@ export default function App() {
             <TreasuryYieldOptimizer
               positions={yieldPositions}
               wallet={wallet}
+              authState={authState}
+              onOpenAuthModal={() => setShowAuthModal(true)}
               onAddPosition={handleAddYieldPosition}
             />
           )}
@@ -678,6 +691,8 @@ export default function App() {
         isOpen={showTransferModal}
         onClose={() => setShowTransferModal(false)}
         wallet={wallet}
+        authState={authState}
+        onOpenAuthModal={() => setShowAuthModal(true)}
         onCompleteTransfer={handleCompleteTransfer}
       />
 
@@ -703,6 +718,12 @@ export default function App() {
         authState={authState}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
+      />
+
+      {/* PWA Standalone App Installer Modal */}
+      <PwaInstallModal
+        isOpen={showPwaModal}
+        onClose={() => setShowPwaModal(false)}
       />
 
     </div>
