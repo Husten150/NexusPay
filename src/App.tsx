@@ -116,11 +116,38 @@ export default function App() {
     setShowPwaModal(true);
   };
 
+  const handleCloseModal = (modalName: 'auth' | 'wallet' | 'transfer' | 'receive' | 'submission' | 'pwa') => {
+    if (modalName === 'auth') {
+      setShowAuthModal(false);
+      setAuthReason(undefined);
+    } else if (modalName === 'wallet') {
+      setShowWalletModal(false);
+    } else if (modalName === 'transfer') {
+      setShowTransferModal(false);
+    } else if (modalName === 'receive') {
+      setShowReceiveModal(false);
+    } else if (modalName === 'submission') {
+      setShowSubmissionHubModal(false);
+    } else if (modalName === 'pwa') {
+      setShowPwaModal(false);
+    }
+
+    if (typeof window !== 'undefined' && window.location.search.includes('modal=')) {
+      window.history.replaceState({ tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}`);
+    }
+  };
+
   // Initial history state initialization on load
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (!window.history.state || !window.history.state.tab) {
-        window.history.replaceState({ tab: activeTab }, '', window.location.href);
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab') || activeTab || 'overview';
+      const modalParam = urlParams.get('modal');
+
+      if (!window.history.state) {
+        const historyObj: any = { tab: tabParam };
+        if (modalParam) historyObj.modal = modalParam;
+        window.history.replaceState(historyObj, '', window.location.href);
       }
     }
   }, []);
@@ -163,13 +190,25 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
   
+  // Helper to check url modal parameter
+  const getInitialModalState = (modalName: string, defaultIfNoModalParam = false) => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const m = urlParams.get('modal');
+      if (m !== null) {
+        return m === modalName;
+      }
+    }
+    return defaultIfNoModalParam;
+  };
+
   // Modals
-  const [showWalletModal, setShowWalletModal] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showReceiveModal, setShowReceiveModal] = useState(false);
-  const [showSubmissionHubModal, setShowSubmissionHubModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showPwaModal, setShowPwaModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(() => getInitialModalState('wallet'));
+  const [showTransferModal, setShowTransferModal] = useState(() => getInitialModalState('transfer'));
+  const [showReceiveModal, setShowReceiveModal] = useState(() => getInitialModalState('receive'));
+  const [showSubmissionHubModal, setShowSubmissionHubModal] = useState(() => getInitialModalState('submission'));
+  const [showAuthModal, setShowAuthModal] = useState(() => getInitialModalState('auth', false));
+  const [showPwaModal, setShowPwaModal] = useState(() => getInitialModalState('pwa'));
   const [authReason, setAuthReason] = useState<string | undefined>(undefined);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -843,7 +882,7 @@ export default function App() {
       {/* Connect Wallet Modal */}
       <WalletModal
         isOpen={showWalletModal}
-        onClose={() => setShowWalletModal(false)}
+        onClose={() => handleCloseModal('wallet')}
         wallet={wallet}
         onConnectWallet={handleConnectWallet}
         onDisconnectWallet={handleDisconnectWallet}
@@ -853,17 +892,17 @@ export default function App() {
       {/* Real-time Transfer Money Modal */}
       <TransferModal
         isOpen={showTransferModal}
-        onClose={() => setShowTransferModal(false)}
+        onClose={() => handleCloseModal('transfer')}
         wallet={wallet}
         authState={authState}
-        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenAuthModal={() => handleOpenAuthModal()}
         onCompleteTransfer={handleCompleteTransfer}
       />
 
       {/* Real-time Receive Money Modal */}
       <ReceiveModal
         isOpen={showReceiveModal}
-        onClose={() => setShowReceiveModal(false)}
+        onClose={() => handleCloseModal('receive')}
         wallet={wallet}
         onReceiveFunds={handleReceiveFunds}
       />
@@ -871,17 +910,14 @@ export default function App() {
       {/* Level 4 Submission Hub Modal */}
       <SubmissionHubModal
         isOpen={showSubmissionHubModal}
-        onClose={() => setShowSubmissionHubModal(false)}
+        onClose={() => handleCloseModal('submission')}
         wallet={wallet}
       />
 
       {/* Authentication & Secret Code Recovery Modal */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => {
-          setShowAuthModal(false);
-          setAuthReason(undefined);
-        }}
+        onClose={() => handleCloseModal('auth')}
         authState={authState}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
@@ -891,7 +927,7 @@ export default function App() {
       {/* PWA Standalone App Installer Modal */}
       <PwaInstallModal
         isOpen={showPwaModal}
-        onClose={() => setShowPwaModal(false)}
+        onClose={() => handleCloseModal('pwa')}
       />
 
     </div>
