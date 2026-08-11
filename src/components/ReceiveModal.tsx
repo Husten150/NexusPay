@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 import { WalletState, SupportedChain } from '../types';
 import { ALL_COINS } from '../data/coinCatalog';
 import { 
@@ -6,13 +8,15 @@ import {
   Copy, 
   Check, 
   QrCode, 
+  Scan,
   Globe, 
   Zap, 
   PlusCircle, 
   Share2, 
   CheckCircle2, 
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Barcode as BarcodeIcon
 } from 'lucide-react';
 
 interface ReceiveModalProps {
@@ -31,6 +35,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(wallet.chain);
   const [selectedToken, setSelectedToken] = useState<string>('USDC');
+  const [codeType, setCodeType] = useState<'QR' | 'BARCODE'>('QR');
   
   // Simulation for live socket incoming payment test
   const [simulatingIncoming, setSimulatingIncoming] = useState(false);
@@ -56,14 +61,18 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
     }, 1800);
   };
 
-  // Build URI payload for QR code
-  const qrUri = wallet.address.startsWith('0x') 
-    ? `ethereum:${wallet.address}?token=${selectedToken}`
-    : `solana:${wallet.address}?token=${selectedToken}`;
+  // Build real scannable payload URI - Raw wallet address for 100% universal wallet compatibility
+  const qrUri = wallet.address;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150 cursor-pointer"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 cursor-default"
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
@@ -76,7 +85,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
                 Receive Money
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Share your address or QR code to receive payments from any country
+                Actual scannable QR Code & Barcode for receiving funds
               </p>
             </div>
           </div>
@@ -112,7 +121,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
 
           <div>
             <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1 text-[10px] uppercase">
-              Requested Asset (Any Coin)
+              Requested Asset
             </label>
             <select
               value={selectedToken}
@@ -121,62 +130,76 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
             >
               {ALL_COINS.map((c) => (
                 <option key={c.symbol} value={c.symbol}>
-                  {c.icon} {c.symbol} - {c.name} (${c.priceUsd < 0.01 ? c.priceUsd.toFixed(6) : c.priceUsd.toLocaleString()})
+                  {c.icon} {c.symbol} - {c.name}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Interactive QR Code Display */}
-        <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+        {/* Toggle between 2D QR Code & 1D Barcode */}
+        <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
+          <button
+            onClick={() => setCodeType('QR')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              codeType === 'QR' 
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>2D QR Code</span>
+          </button>
+          
+          <button
+            onClick={() => setCodeType('BARCODE')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              codeType === 'BARCODE' 
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BarcodeIcon className="w-3.5 h-3.5" />
+            <span>1D Barcode</span>
+          </button>
+        </div>
+
+        {/* Real Scannable QR Code or Barcode Display */}
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center space-y-3">
           
           <div className="inline-block p-4 rounded-xl bg-white shadow-md border border-slate-200">
-            {/* SVG Visual Representation of QR Code */}
-            <svg className="w-36 h-36 mx-auto" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Outer Position Squares */}
-              <rect x="5" y="5" width="26" height="26" rx="4" fill="#0f172a"/>
-              <rect x="9" y="9" width="18" height="18" rx="2" fill="#ffffff"/>
-              <rect x="13" y="13" width="10" height="10" rx="1" fill="#6366f1"/>
+            {codeType === 'QR' ? (
+              <div className="p-1">
+                <QRCodeSVG 
+                  value={qrUri} 
+                  size={160} 
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+            ) : (
+              <div className="p-1 overflow-x-auto max-w-[280px]">
+                <Barcode 
+                  value={wallet.address} 
+                  width={1.2}
+                  height={55}
+                  fontSize={10}
+                  margin={4}
+                  background="#ffffff"
+                  lineColor="#0f172a"
+                />
+              </div>
+            )}
+          </div>
 
-              <rect x="69" y="5" width="26" height="26" rx="4" fill="#0f172a"/>
-              <rect x="73" y="9" width="18" height="18" rx="2" fill="#ffffff"/>
-              <rect x="77" y="13" width="10" height="10" rx="1" fill="#6366f1"/>
-
-              <rect x="5" y="69" width="26" height="26" rx="4" fill="#0f172a"/>
-              <rect x="9" y="73" width="18" height="18" rx="2" fill="#ffffff"/>
-              <rect x="13" y="77" width="10" height="10" rx="1" fill="#6366f1"/>
-
-              {/* Matrix Data Patterns */}
-              <rect x="36" y="8" width="6" height="6" rx="1" fill="#0f172a"/>
-              <rect x="48" y="8" width="6" height="6" rx="1" fill="#0f172a"/>
-              <rect x="58" y="18" width="6" height="6" rx="1" fill="#6366f1"/>
-              
-              <rect x="10" y="38" width="6" height="6" rx="1" fill="#0f172a"/>
-              <rect x="22" y="38" width="6" height="6" rx="1" fill="#6366f1"/>
-              <rect x="34" y="38" width="12" height="6" rx="1" fill="#0f172a"/>
-              <rect x="52" y="38" width="8" height="6" rx="1" fill="#10b981"/>
-              <rect x="66" y="38" width="6" height="6" rx="1" fill="#0f172a"/>
-              <rect x="78" y="38" width="12" height="6" rx="1" fill="#6366f1"/>
-
-              <rect x="38" y="52" width="24" height="24" rx="3" fill="#6366f1"/>
-              <path d="M46 64L50 68L58 60" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-
-              <rect x="8" y="52" width="6" height="6" rx="1" fill="#0f172a"/>
-              <rect x="20" y="52" width="6" height="6" rx="1" fill="#0f172a"/>
-
-              <rect x="68" y="52" width="12" height="6" rx="1" fill="#0f172a"/>
-              <rect x="84" y="52" width="8" height="6" rx="1" fill="#10b981"/>
-
-              <rect x="38" y="82" width="8" height="6" rx="1" fill="#0f172a"/>
-              <rect x="52" y="82" width="14" height="6" rx="1" fill="#0f172a"/>
-              <rect x="72" y="78" width="8" height="12" rx="1" fill="#6366f1"/>
-            </svg>
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
+            <Scan className="w-3.5 h-3.5" />
+            <span>{codeType === 'QR' ? 'Camera & Wallet Scannable' : 'POS & Barcode Reader Scannable'}</span>
           </div>
 
           <div>
             <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider block">
-              Integrated Wallet Address:
+              Receiving Address ({selectedChain}):
             </span>
             <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100 break-all bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 mt-1 select-all">
               {wallet.address}
@@ -191,7 +214,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-300" />
-                  <span>Copied!</span>
+                  <span>Copied Address!</span>
                 </>
               ) : (
                 <>

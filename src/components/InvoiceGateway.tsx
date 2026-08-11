@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 import { MerchantInvoice, InvoiceItem, WalletState, AuthState } from '../types';
 import { ALL_COINS } from '../data/coinCatalog';
 import { 
@@ -17,7 +19,10 @@ import {
   ArrowUpRight,
   Receipt,
   RefreshCw,
-  Lock
+  Lock,
+  Scan,
+  Barcode as BarcodeIcon,
+  X
 } from 'lucide-react';
 
 interface InvoiceGatewayProps {
@@ -39,6 +44,8 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
+  const [selectedQrInvoice, setSelectedQrInvoice] = useState<MerchantInvoice | null>(null);
+  const [qrModalMode, setQrModalMode] = useState<'QR' | 'BARCODE'>('QR');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -249,17 +256,33 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
               </div>
 
               {/* QR Paylink Payload */}
-              <div className="p-2.5 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 truncate flex items-center justify-between">
-                <div className="flex items-center gap-1.5 truncate">
-                  <QrCode className="w-3.5 h-3.5 text-indigo-500" />
-                  <span className="truncate">{inv.qrPayload}</span>
-                </div>
+              <div className="p-2.5 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 flex items-center justify-between gap-2">
                 <button
-                  onClick={() => handleCopyQrPayload(inv)}
-                  className="p-1 hover:text-indigo-900 dark:hover:text-white"
+                  type="button"
+                  onClick={() => { setSelectedQrInvoice(inv); setQrModalMode('QR'); }}
+                  className="flex items-center gap-1.5 truncate hover:underline text-left"
+                  title="Click to view & scan actual QR / Barcode"
                 >
-                  {copiedId === inv.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <QrCode className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                  <span className="truncate">{inv.qrPayload}</span>
                 </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedQrInvoice(inv); setQrModalMode('QR'); }}
+                    className="p-1 rounded bg-indigo-100 dark:bg-indigo-900/60 hover:bg-indigo-200 text-indigo-700 dark:text-indigo-200 text-[10px] font-sans font-bold flex items-center gap-0.5"
+                  >
+                    <Scan className="w-3 h-3" />
+                    <span>Scan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyQrPayload(inv)}
+                    className="p-1 hover:text-indigo-900 dark:hover:text-white"
+                  >
+                    {copiedId === inv.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -457,6 +480,108 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
               </div>
 
             </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* Scannable Invoice QR Code & Barcode Modal */}
+      {selectedQrInvoice && (
+        <div 
+          onClick={() => setSelectedQrInvoice(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 text-center cursor-default"
+          >
+            
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <QrCode className="w-4 h-4 text-indigo-500" />
+                  <span>Invoice Paylink {selectedQrInvoice.invoiceNumber}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  ${selectedQrInvoice.totalUsd.toLocaleString()} {selectedQrInvoice.paymentToken} • {selectedQrInvoice.clientName}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedQrInvoice(null)}
+                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Toggle QR vs Barcode */}
+            <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
+              <button
+                onClick={() => setQrModalMode('QR')}
+                className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  qrModalMode === 'QR' 
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>2D QR Code</span>
+              </button>
+              
+              <button
+                onClick={() => setQrModalMode('BARCODE')}
+                className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  qrModalMode === 'BARCODE' 
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <BarcodeIcon className="w-3.5 h-3.5" />
+                <span>1D Barcode</span>
+              </button>
+            </div>
+
+            {/* Scannable Rendering */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <div className="inline-block p-4 rounded-xl bg-white shadow border border-slate-200">
+                {qrModalMode === 'QR' ? (
+                  <QRCodeSVG 
+                    value={selectedQrInvoice.recipientAddress || wallet.address} 
+                    size={180} 
+                    level="H" 
+                    includeMargin={true}
+                  />
+                ) : (
+                  <div className="overflow-x-auto max-w-[250px]">
+                    <Barcode 
+                      value={selectedQrInvoice.recipientAddress || wallet.address} 
+                      width={1.2}
+                      height={60}
+                      fontSize={10}
+                      margin={4}
+                      background="#ffffff"
+                      lineColor="#0f172a"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
+                <Scan className="w-3.5 h-3.5" />
+                <span>{qrModalMode === 'QR' ? 'Camera & Wallet Scannable' : 'POS & Barcode Scanner'}</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-mono break-all text-slate-700 dark:text-slate-300">
+              {selectedQrInvoice.qrPayload}
+            </div>
+
+            <button
+              onClick={() => setSelectedQrInvoice(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs shadow transition-all"
+            >
+              Done / Close
+            </button>
 
           </div>
         </div>

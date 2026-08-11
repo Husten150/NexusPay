@@ -600,6 +600,14 @@ export default function App() {
         onOpenReceiveModal={() => setShowReceiveModal(true)}
         onOpenAuthModal={() => { setAuthReason(undefined); setShowAuthModal(true); }}
         onOpenPwaModal={() => setShowPwaModal(true)}
+        onNavigateHome={() => {
+          setShowReceiveModal(false);
+          setShowTransferModal(false);
+          setShowWalletModal(false);
+          setShowAuthModal(false);
+          setShowSubmissionHubModal(false);
+          handleTabChange('overview');
+        }}
         onSelectChain={handleSelectChain}
         agentActive={true}
       />

@@ -49,8 +49,14 @@ export const PwaInstallModal: React.FC<PwaInstallModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 text-white rounded-2xl shadow-2xl p-6 space-y-5 relative overflow-hidden animate-in zoom-in-95 duration-150">
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150 cursor-pointer"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-slate-900 border border-indigo-500/30 text-white rounded-2xl shadow-2xl p-6 space-y-5 relative overflow-hidden animate-in zoom-in-95 duration-150 cursor-default"
+      >
         
         {/* Glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
