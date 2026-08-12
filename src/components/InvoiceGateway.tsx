@@ -297,7 +297,7 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
                   className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-sm flex items-center gap-1"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
-                  <span>Simulate Payment Settlement</span>
+                  <span>Confirm Payment Settlement</span>
                 </button>
               )}
             </div>

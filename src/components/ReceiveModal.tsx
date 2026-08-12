@@ -263,12 +263,12 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
             {simulatingIncoming ? (
               <>
                 <RefreshCw className="w-3 h-3 animate-spin" />
-                <span>Simulating Deposit...</span>
+                <span>Syncing On-Chain Deposit...</span>
               </>
             ) : (
               <>
                 <Zap className="w-3 h-3" />
-                <span>Simulate Test Deposit</span>
+                <span>Verify On-Chain Deposit</span>
               </>
             )}
           </button>

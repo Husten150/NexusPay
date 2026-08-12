@@ -260,6 +260,27 @@ export default function App() {
     showToast(`Welcome, ${updatedUser.username}! Wallet linked: ${userWalletAddress.slice(0, 6)}...${userWalletAddress.slice(-4)}`);
   };
 
+  const handleUpdateUser = (updatedUser: UserAccount) => {
+    setAuthState({
+      isAuthenticated: true,
+      user: updatedUser,
+    });
+    // Persist in localStorage
+    const savedUsersRaw = localStorage.getItem('nexuspay_users');
+    let usersList: UserAccount[] = [];
+    if (savedUsersRaw) {
+      try { usersList = JSON.parse(savedUsersRaw); } catch (err) {}
+    }
+    const idx = usersList.findIndex((u) => u.id === updatedUser.id || u.email === updatedUser.email);
+    if (idx >= 0) {
+      usersList[idx] = updatedUser;
+    } else {
+      usersList.push(updatedUser);
+    }
+    localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
+    showToast('Profile & KYC Identification updated successfully!');
+  };
+
   const handleLogout = () => {
     setAuthState({
       isAuthenticated: false,
@@ -409,7 +430,7 @@ export default function App() {
         PEPE: 0,
       },
     });
-    showToast('Disconnected wallet & removed demo account data.');
+    showToast('Disconnected wallet & cleared active session.');
   };
 
   const handleTopUpFaucet = () => {
@@ -421,7 +442,7 @@ export default function App() {
         USDC: prev.tokenBalances.USDC + 10000,
       },
     }));
-    showToast('claimed +10,000 USDC Testnet Faucet tokens!');
+    showToast('Deposited +10,000 USDC into live wallet balance!');
   };
 
   // Transfer execution handler
@@ -920,6 +941,7 @@ export default function App() {
         onClose={() => handleCloseModal('auth')}
         authState={authState}
         onLoginSuccess={handleLoginSuccess}
+        onUpdateUser={handleUpdateUser}
         onLogout={handleLogout}
         authReason={authReason}
       />

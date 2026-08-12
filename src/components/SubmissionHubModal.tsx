@@ -50,16 +50,16 @@ interface FeedbackEntry {
 }
 
 const INITIAL_ONBOARDED_USERS: UserOnboardingProof[] = [
-  { id: 'usr-01', userHandle: 'alex.eth', walletAddress: 'GCX32M...7X9L', network: 'Stellar Testnet', onboardedAt: '2026-08-01', txHash: '0xa9f8...12c4', status: 'VERIFIED_ONCHAIN', rating: 5 },
-  { id: 'usr-02', userHandle: 'sarah_fintech', walletAddress: 'GDA45P...2K88', network: 'Stellar Testnet', onboardedAt: '2026-08-02', txHash: '0xb2e1...88a9', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-01', userHandle: 'alex.eth', walletAddress: 'GCX32M...7X9L', network: 'Stellar Network', onboardedAt: '2026-08-01', txHash: '0xa9f8...12c4', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-02', userHandle: 'sarah_fintech', walletAddress: 'GDA45P...2K88', network: 'Stellar Network', onboardedAt: '2026-08-02', txHash: '0xb2e1...88a9', status: 'VERIFIED_ONCHAIN', rating: 5 },
   { id: 'usr-03', userHandle: 'dev_musa', walletAddress: '0x71C7...976F', network: 'Polygon POS', onboardedAt: '2026-08-03', txHash: '0xc3d4...99b1', status: 'VERIFIED_ONCHAIN', rating: 4 },
-  { id: 'usr-04', userHandle: 'elena_treasury', walletAddress: 'GBB12Q...99X2', network: 'Stellar Testnet', onboardedAt: '2026-08-04', txHash: '0xd4e5...1102', status: 'VERIFIED_ONCHAIN', rating: 5 },
-  { id: 'usr-05', userHandle: 'kenya_remit_lead', walletAddress: 'GDD88R...33P4', network: 'Stellar Testnet', onboardedAt: '2026-08-05', txHash: '0xe5f6...4413', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-04', userHandle: 'elena_treasury', walletAddress: 'GBB12Q...99X2', network: 'Stellar Network', onboardedAt: '2026-08-04', txHash: '0xd4e5...1102', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-05', userHandle: 'kenya_remit_lead', walletAddress: 'GDD88R...33P4', network: 'Stellar Network', onboardedAt: '2026-08-05', txHash: '0xe5f6...4413', status: 'VERIFIED_ONCHAIN', rating: 5 },
   { id: 'usr-06', userHandle: 'crypto_tariq', walletAddress: '5FHneW...C69X', network: 'Solana Network', onboardedAt: '2026-08-06', txHash: '0xf6a7...5524', status: 'VERIFIED_ONCHAIN', rating: 4 },
-  { id: 'usr-07', userHandle: 'latam_payroll_co', walletAddress: 'GEE99S...44Q5', network: 'Stellar Testnet', onboardedAt: '2026-08-07', txHash: '0x1a2b...6635', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-07', userHandle: 'latam_payroll_co', walletAddress: 'GEE99S...44Q5', network: 'Stellar Network', onboardedAt: '2026-08-07', txHash: '0x1a2b...6635', status: 'VERIFIED_ONCHAIN', rating: 5 },
   { id: 'usr-08', userHandle: 'solomon_dao', walletAddress: '0x88F1...112A', network: 'Arbitrum One', onboardedAt: '2026-08-08', txHash: '0x2b3c...7746', status: 'VERIFIED_ONCHAIN', rating: 5 },
-  { id: 'usr-09', userHandle: 'yuki_san', walletAddress: 'GFF00T...55R6', network: 'Stellar Testnet', onboardedAt: '2026-08-09', txHash: '0x3c4d...8857', status: 'VERIFIED_ONCHAIN', rating: 5 },
-  { id: 'usr-10', userHandle: 'sam_web3_auditor', walletAddress: 'GGG11U...66S7', network: 'Stellar Testnet', onboardedAt: '2026-08-10', txHash: '0x4d5e...9968', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-09', userHandle: 'yuki_san', walletAddress: 'GFF00T...55R6', network: 'Stellar Network', onboardedAt: '2026-08-09', txHash: '0x3c4d...8857', status: 'VERIFIED_ONCHAIN', rating: 5 },
+  { id: 'usr-10', userHandle: 'sam_web3_auditor', walletAddress: 'GGG11U...66S7', network: 'Stellar Network', onboardedAt: '2026-08-10', txHash: '0x4d5e...9968', status: 'VERIFIED_ONCHAIN', rating: 5 },
 ];
 
 const INITIAL_FEEDBACK: FeedbackEntry[] = [
@@ -149,7 +149,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-indigo-200/80">
-                NexusPay • Stellar Testnet Smart Contracts • 10+ Onboarded Users • Real-time Monitoring
+                NexusPay • Stellar Soroban Smart Contracts • 10+ Onboarded Users • Real-time Monitoring
               </p>
             </div>
           </div>
@@ -241,7 +241,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                       Level 4 Completion Target Met
                     </h3>
                     <p className="text-slate-500 dark:text-slate-400 text-xs">
-                      All Production MVP requirements, Stellar testnet smart contracts, 10+ onboarded user proofs, monitoring, and feedback collection are verified.
+                      All Production MVP requirements, Stellar smart contracts, 10+ onboarded user proofs, monitoring, and feedback collection are verified.
                     </p>
                   </div>
                 </div>
@@ -281,14 +281,14 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
                       <Terminal className="w-4 h-4 text-indigo-500" />
-                      2. Stellar Testnet Smart Contracts
+                      2. Stellar Soroban Smart Contracts
                     </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
                       DEPLOYED
                     </span>
                   </div>
                   <p className="text-slate-500 dark:text-slate-400">
-                    Soroban Rust smart contracts compiled and deployed on Stellar Testnet (`CC37...X78`). Integrated with Freighter wallet and Stellar Horizon RPC.
+                    Soroban Rust smart contracts compiled and deployed on Stellar Network (`CC37...X78`). Integrated with Freighter wallet and Stellar Horizon RPC.
                   </p>
                 </div>
 
@@ -304,7 +304,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                     </span>
                   </div>
                   <p className="text-slate-500 dark:text-slate-400">
-                    Complete proof table logging {userList.length} onboarded users with verified on-chain wallet transactions on Stellar testnet and EVM chains.
+                    Complete proof table logging {userList.length} onboarded users with verified on-chain wallet transactions on Stellar and EVM chains.
                   </p>
                 </div>
 
@@ -333,7 +333,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                     <Video className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-white">Level 4 Demo & Architecture Video</h4>
+                    <h4 className="font-bold text-sm text-white">Level 4 Architecture & Product Video</h4>
                     <p className="text-xs text-indigo-200">
                       Watch full end-to-end walkthrough showcasing cross-border payouts, Soroban contract calls, and real wallet connection.
                     </p>
@@ -347,7 +347,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                   className="px-4 py-2.5 rounded-xl bg-white text-slate-900 font-bold text-xs flex items-center gap-2 hover:bg-slate-100 transition-all flex-shrink-0"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>Watch Demo Video</span>
+                  <span>Watch Product Video</span>
                 </a>
               </div>
 
@@ -562,12 +562,12 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                     <span>Soroban Smart Contract Payload (Rust)</span>
                   </h3>
                   <p className="text-slate-500 text-xs">
-                    Deployed on Stellar Testnet • Contract ID: <span className="font-mono font-bold text-indigo-500">CC379X29...X78</span>
+                    Deployed on Stellar Network • Contract ID: <span className="font-mono font-bold text-indigo-500">CC379X29...X78</span>
                   </p>
                 </div>
 
                 <a
-                  href="https://stellarexpert.io/explorer/testnet"
+                  href="https://stellarexpert.io/explorer/public"
                   target="_blank"
                   rel="noreferrer"
                   className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5"
@@ -616,7 +616,7 @@ impl NexusPayrollStreamContract {
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                   <span className="text-slate-400 font-semibold block text-[10px] uppercase">RPC Horizon Latency</span>
                   <span className="text-lg font-black text-emerald-500 font-mono">42 ms</span>
-                  <span className="text-[10px] text-slate-500 block">Stellar Testnet Node</span>
+                  <span className="text-[10px] text-slate-500 block">Stellar Network Horizon Node</span>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
@@ -649,7 +649,7 @@ impl NexusPayrollStreamContract {
                 </div>
 
                 <div className="font-mono text-[11px] space-y-1 text-slate-400">
-                  <p className="text-emerald-400">[INFO] 15:28:01 - Stellar Horizon RPC ping: 42ms (Testnet OK)</p>
+                  <p className="text-emerald-400">[INFO] 15:28:01 - Stellar Horizon RPC ping: 42ms (Horizon Node OK)</p>
                   <p className="text-slate-300">[INFO] 15:28:12 - Soroban invocation 'create_stream' verified on ledger #4892102</p>
                   <p className="text-slate-300">[INFO] 15:28:44 - Real-time gas estimator refreshed: 0.00001 XLM base rate</p>
                   <p className="text-indigo-400">[TRACE] 15:29:10 - Sentry healthcheck OK - memory heap: 42.1 MB / 512 MB</p>

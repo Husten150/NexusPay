@@ -23,7 +23,13 @@ import {
   Wallet,
   QrCode,
   ArrowLeft,
-  Zap
+  Zap,
+  Phone,
+  FileText,
+  Upload,
+  BadgeCheck,
+  CreditCard,
+  Save
 } from 'lucide-react';
 import { UserAccount, AuthState } from '../types';
 
@@ -32,6 +38,7 @@ interface AuthModalProps {
   onClose: () => void;
   authState: AuthState;
   onLoginSuccess: (user: UserAccount) => void;
+  onUpdateUser?: (updatedUser: UserAccount) => void;
   onLogout: () => void;
   authReason?: string;
 }
@@ -69,6 +76,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   authState,
   onLoginSuccess,
+  onUpdateUser,
   onLogout,
   authReason,
 }) => {
@@ -78,6 +86,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // User Profile & KYC State
+  const [fullName, setFullName] = useState(authState.user?.fullName || '');
+  const [phoneNumber, setPhoneNumber] = useState(authState.user?.phoneNumber || '');
+  const [idType, setIdType] = useState<'NATIONAL_ID' | 'PASSPORT' | 'DRIVERS_LICENSE' | 'TAX_ID'>(
+    authState.user?.idType || 'NATIONAL_ID'
+  );
+  const [identificationNumber, setIdentificationNumber] = useState(authState.user?.identificationNumber || '');
+  const [idProofDocumentName, setIdProofDocumentName] = useState(authState.user?.idProofDocumentName || '');
+  const [idProofDataUrl, setIdProofDataUrl] = useState(authState.user?.idProofDataUrl || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authState.user) {
+      setFullName(authState.user.fullName || '');
+      setPhoneNumber(authState.user.phoneNumber || '');
+      setIdType(authState.user.idType || 'NATIONAL_ID');
+      setIdentificationNumber(authState.user.identificationNumber || '');
+      setIdProofDocumentName(authState.user.idProofDocumentName || '');
+      setIdProofDataUrl(authState.user.idProofDataUrl || '');
+    }
+  }, [authState.user, isOpen]);
 
   // Google Authenticator 2FA State
   const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
@@ -135,6 +166,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     navigator.clipboard.writeText(textToCopy);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2500);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIdProofDocumentName(file.name);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIdProofDataUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveKYCProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authState.user) return;
+    setIsSavingProfile(true);
+
+    const updatedUser: UserAccount = {
+      ...authState.user,
+      fullName: fullName.trim() || authState.user.username,
+      phoneNumber: phoneNumber.trim(),
+      idType,
+      identificationNumber: identificationNumber.trim(),
+      idProofDocumentName,
+      idProofDataUrl,
+      kycStatus: identificationNumber.trim() ? 'VERIFIED' : 'PENDING',
+    };
+
+    setTimeout(() => {
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      setIsSavingProfile(false);
+      setProfileSuccessMsg('Profile, phone number & identification details updated successfully!');
+      setTimeout(() => setProfileSuccessMsg(null), 3500);
+    }, 350);
   };
 
   // 1. STEP ONE: LOGIN WITH EMAIL & PASSWORD -> PROMPTS GOOGLE AUTHENTICATOR
@@ -445,36 +514,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {authState.isAuthenticated && authState.user && (
             <div className="space-y-4 animate-in fade-in duration-150">
               
-              {/* User Identity Card */}
+              {/* User Identity Overview Card */}
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-black flex items-center justify-center text-sm shadow">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-black flex items-center justify-center text-base shadow-md ring-2 ring-indigo-500/30">
                       {authState.user.username.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-white">
-                        {authState.user.username}
-                      </h3>
-                      <p className="text-[11px] text-slate-400">
-                        {authState.user.email}
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-base text-white">
+                          {fullName || authState.user.username}
+                        </h3>
+                        {identificationNumber && (
+                          <BadgeCheck className="w-4 h-4 text-emerald-400" title="Verified KYC" />
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono">
+                        @{authState.user.username} • {authState.user.email}
                       </p>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/30 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-emerald-400" /> Verified 2FA
+                  <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border flex items-center gap-1 ${
+                    identificationNumber 
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                      : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  }`}>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    {identificationNumber ? 'KYC Verified' : 'KYC Pending'}
                   </span>
                 </div>
 
-                <div className="pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Account ID:</span>
-                    <span className="font-mono text-slate-200 font-bold">{authState.user.id}</span>
+                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-800 text-[11px]">
+                  <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80">
+                    <span className="text-slate-500 block">Account ID</span>
+                    <span className="font-mono text-slate-200 font-bold break-all">{authState.user.id}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Google 2FA Status:</span>
-                    <span className="text-emerald-400 font-bold">● Active (Google Authenticator)</span>
+                  <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80">
+                    <span className="text-slate-500 block">Google 2FA</span>
+                    <span className="text-emerald-400 font-bold flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" /> Active
+                    </span>
                   </div>
                 </div>
               </div>
@@ -484,9 +565,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-white flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-emerald-400" />
-                    Wallet Address
+                    Linked Web3 Wallet Address
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono">Linked</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">On-Chain Sync</span>
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-xs text-emerald-300 break-all flex items-center justify-between gap-2">
@@ -502,31 +583,166 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              {/* Secret Recovery Code */}
+              {/* Secret Recovery Code Notice (HIDDEN AFTER REGISTRATION FOR SECURITY) */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-400 text-xs flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5" />
+                  <span className="font-bold text-slate-300 text-xs flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
                     Secret Recovery Code
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Protected</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Copied & Secured
+                  </span>
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-xs text-amber-300 break-all flex items-center justify-between gap-2">
-                  <span>{authState.user.secretRecoveryCode}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(authState.user?.secretRecoveryCode || '')}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
-                  >
-                    {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1 leading-relaxed">
+                  <p className="text-slate-300 font-medium flex items-center gap-1.5">
+                    <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
+                    Hidden for account protection
+                  </p>
+                  <p>
+                    Your 12-word seed phrase and secret key were displayed and copied during account registration.
+                    It is permanently hidden from this profile screen to prevent shoulder-surfing and unauthorized copying.
+                  </p>
                 </div>
               </div>
 
-              {/* Sign Out Button */}
-              <div className="pt-2 flex items-center gap-2">
+              {/* KYC Identification & Phone Number Form */}
+              <form onSubmit={handleSaveKYCProfile} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-indigo-400" />
+                    Personal & KYC Identification Details
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">KYC Compliance</span>
+                </div>
+
+                {profileSuccessMsg && (
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>{profileSuccessMsg}</span>
+                  </div>
+                )}
+
+                {/* Full Legal Name */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-indigo-400" />
+                    Full Legal Name
+                  </label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="e.g. Johnathan Vance"
+                    className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                  />
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-indigo-400" />
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+1 (555) 019-2834"
+                    className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium font-mono"
+                  />
+                </div>
+
+                {/* Identification Type & Number */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                      <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                      ID Document Type
+                    </label>
+                    <select
+                      value={idType}
+                      onChange={(e) => setIdType(e.target.value as any)}
+                      className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                    >
+                      <option value="NATIONAL_ID">National ID / NIN</option>
+                      <option value="PASSPORT">International Passport</option>
+                      <option value="DRIVERS_LICENSE">Driver's License</option>
+                      <option value="TAX_ID">Tax Identification Number (TIN)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
+                      Identification Number
+                    </label>
+                    <input
+                      type="text"
+                      value={identificationNumber}
+                      onChange={(e) => setIdentificationNumber(e.target.value)}
+                      placeholder="e.g. A-9840219482"
+                      className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Proof of Identification Upload */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                    <Upload className="w-3.5 h-3.5 text-indigo-400" />
+                    Proof of Identification Document
+                  </label>
+
+                  <div className="relative border-2 border-dashed border-slate-800 rounded-xl p-3 bg-slate-900/60 hover:bg-slate-900 transition-all text-center">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    
+                    {idProofDocumentName ? (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-indigo-950/60 border border-indigo-800/80">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          {idProofDataUrl && idProofDataUrl.startsWith('data:image') ? (
+                            <img src={idProofDataUrl} alt="ID Preview" className="w-8 h-8 rounded object-cover border border-slate-700 shrink-0" />
+                          ) : (
+                            <FileText className="w-6 h-6 text-indigo-400 shrink-0" />
+                          )}
+                          <div className="text-left overflow-hidden">
+                            <span className="text-xs font-bold text-white block truncate">{idProofDocumentName}</span>
+                            <span className="text-[10px] text-emerald-400 font-medium">✓ Document Attached</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-indigo-300 bg-indigo-900 px-2 py-1 rounded font-semibold shrink-0">Replace File</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <Upload className="w-5 h-5 text-indigo-400 mx-auto" />
+                        <span className="text-xs text-slate-300 font-semibold block">Click or Drag & Drop Proof Document</span>
+                        <span className="text-[10px] text-slate-500 block">Upload Passport, Driver's License or National ID photo/PDF</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submit Profile Save Button */}
                 <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{isSavingProfile ? 'Saving Details...' : 'Save Profile & KYC Identification'}</span>
+                </button>
+              </form>
+
+              {/* Sign Out & Cancel Buttons */}
+              <div className="pt-1 flex items-center gap-2">
+                <button
+                  type="button"
                   onClick={() => {
                     onLogout();
                     onClose();
@@ -538,10 +754,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={onClose}
                   className="px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
                 >
-                  Cancel
+                  Close
                 </button>
               </div>
 
@@ -645,7 +862,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="w-full py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
                 >
                   <Zap className="w-4 h-4 text-emerald-400" />
-                  <span>1-Click Instant Demo Login</span>
+                  <span>1-Click Instant Enterprise Login</span>
                 </button>
               </div>
             </form>

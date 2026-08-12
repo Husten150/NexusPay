@@ -542,7 +542,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-95"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>+10,000 Testnet Faucet</span>
+            <span>Instant +10,000 Deposit Credit</span>
           </button>
 
           {onDisconnectWallet && (

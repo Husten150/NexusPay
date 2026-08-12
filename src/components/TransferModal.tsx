@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WalletState, SupportedChain, TransactionAuditLog, AuthState } from '../types';
 import { ALL_COINS, getCoinInfo, convertCoinToUsd, getCoinsForChain } from '../data/coinCatalog';
-import { validateAddressForChain } from '../utils/chainAddress';
+import { validateAddressForChain, CHAIN_ADDRESS_MAP, getChainAddress } from '../utils/chainAddress';
 import { 
   Send, 
   ArrowRight, 
@@ -18,7 +18,8 @@ import {
   Gauge,
   Flame,
   Coins,
-  Lock
+  Lock,
+  Sparkles
 } from 'lucide-react';
 
 interface TransferModalProps {
@@ -76,6 +77,11 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   const [status, setStatus] = useState<'IDLE' | 'PREPARING' | 'WAITING_SIGNATURE' | 'BROADCASTING' | 'CONFIRMED' | 'FAILED'>('IDLE');
   const [txHash, setTxHash] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // Transfer security authorization inputs
+  const [authStep, setAuthStep] = useState<'FORM' | 'AUTHENTICATING'>('FORM');
+  const [authPassword, setAuthPassword] = useState('');
+  const [auth2faCode, setAuth2faCode] = useState('');
 
   // Keep selectedChain synced with wallet or auto-adjust based on token primary network
   useEffect(() => {
@@ -144,9 +150,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     }
   };
 
-  const handleExecuteTransfer = async () => {
+  const handleProceedToSecurity = () => {
     if (!authState.isAuthenticated) {
-      setErrorMessage('🔒 Authentication Required: You must be signed in to execute Web3 transactions.');
+      setErrorMessage('🔒 Authentication Required: You must be signed in to execute Web3 transfers.');
       onOpenAuthModal();
       return;
     }
@@ -156,8 +162,34 @@ export const TransferModal: React.FC<TransferModalProps> = ({
       return;
     }
 
+    const validation = validateAddressForChain(selectedChain, recipient);
+    if (!validation.isValid) {
+      setErrorMessage(`Invalid address for ${selectedChain}: ${validation.reason}`);
+      return;
+    }
+
     if (numericAmount > tokenBalance && tokenBalance > 0) {
       setErrorMessage(`Insufficient ${selectedToken} balance (You have ${tokenBalance} ${selectedToken}).`);
+      return;
+    }
+
+    setErrorMessage('');
+    setAuthStep('AUTHENTICATING');
+  };
+
+  const handleExecuteTransfer = async () => {
+    if (!authPassword) {
+      setErrorMessage('🔒 Password required: Please enter your NexusPay account password.');
+      return;
+    }
+
+    if (authState.user?.passwordHash && authPassword !== authState.user.passwordHash) {
+      setErrorMessage('❌ Invalid account password provided. Please check and try again.');
+      return;
+    }
+
+    if (!auth2faCode || auth2faCode.trim().length < 6) {
+      setErrorMessage('🔐 2FA Security Token Required: Please enter your 6-digit Google Authenticator / 2FA code.');
       return;
     }
 
@@ -213,6 +245,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
   const resetModal = () => {
     setStatus('IDLE');
+    setAuthStep('FORM');
+    setAuthPassword('');
+    setAuth2faCode('');
     setRecipient('');
     setAmount('100');
     setErrorMessage('');
@@ -253,7 +288,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
           </button>
         </div>
 
-        {status === 'IDLE' && (
+        {status === 'IDLE' && authStep === 'FORM' && (
           <div className="space-y-3.5 text-xs">
             
             {/* Sender Source & Target Chain Selection */}
@@ -303,7 +338,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                     {validateAddressForChain(selectedChain, recipient).isValid ? (
                       <>
                         <CheckCircle2 className="w-3 h-3" />
-                        <span>Valid {selectedChain} Format</span>
+                        <span>Valid {validateAddressForChain(selectedChain, recipient).isDomain ? 'Domain' : selectedChain} Address</span>
                       </>
                     ) : (
                       <>
@@ -321,13 +356,44 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 placeholder={selectedChain === 'Solana' ? '7xKXtg... (Solana Address)' : selectedChain === 'Bitcoin Network' ? 'bc1q... (Bitcoin Address)' : selectedChain === 'Stellar Network' ? 'G... (Stellar Public Key)' : selectedChain === 'Tron' ? 'T... (Tron Address)' : '0x71C... or recipient.eth'}
                 className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+              
+              {/* Quick Sample Fill Options */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px]">
+                <span className="text-slate-400 font-medium">Quick Fill:</span>
+                <button
+                  type="button"
+                  onClick={() => setRecipient(getChainAddress(selectedChain))}
+                  className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-semibold border border-indigo-200 dark:border-indigo-800 transition-all active:scale-95 flex items-center gap-1"
+                >
+                  <Sparkles className="w-2.5 h-2.5 text-indigo-400" />
+                  <span>Valid {selectedChain} Sample</span>
+                </button>
+                {['Ethereum', 'Polygon', 'Base', 'Arbitrum', 'Optimism'].includes(selectedChain) && (
+                  <button
+                    type="button"
+                    onClick={() => setRecipient('treasury.eth')}
+                    className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
+                  >
+                    treasury.eth
+                  </button>
+                )}
+                {selectedChain === 'Solana' && (
+                  <button
+                    type="button"
+                    onClick={() => setRecipient('treasury.sol')}
+                    className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
+                  >
+                    treasury.sol
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Token & Amount Selection (Supports ALL Coins) */}
             <div className="grid grid-cols-12 gap-2">
               <div className="col-span-5">
                 <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-                  Select Coin (Any)
+                  Select Token (Any Coin)
                 </label>
                 <select
                   value={selectedToken}
@@ -462,14 +528,136 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               </div>
             )}
 
-            {/* Action button */}
+            {/* Action button: Proceed to Security Verification */}
             <button
-              onClick={handleExecuteTransfer}
+              onClick={handleProceedToSecurity}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
             >
-              <span>Send {numericAmount} {selectedToken} (~${usdValue.toFixed(2)}) Now</span>
+              <Lock className="w-4 h-4 text-emerald-300" />
+              <span>Authorize Transfer ({numericAmount} {selectedToken})</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+          </div>
+        )}
+
+        {/* STEP 2: SECURITY AUTHORIZATION SCREEN (TOKEN, PASSWORD, 2FA AUTHENTICATION) */}
+        {status === 'IDLE' && authStep === 'AUTHENTICATING' && (
+          <div className="space-y-4 text-xs animate-in fade-in duration-150">
+            
+            {/* Header / Summary Card */}
+            <div className="p-4 rounded-xl bg-indigo-950/50 border border-indigo-800/80 space-y-3">
+              <div className="flex items-center justify-between border-b border-indigo-900/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{currentCoin?.icon || '🪙'}</span>
+                  <div>
+                    <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
+                      {numericAmount} {selectedToken}
+                    </h4>
+                    <span className="text-[11px] text-emerald-400 font-semibold block">
+                      ~${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-indigo-900 text-indigo-300 font-bold text-[10px] border border-indigo-700">
+                  {selectedChain}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-slate-300">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Recipient Address:</span>
+                  <span className="font-mono text-indigo-200 font-bold">
+                    {recipient.length > 20 ? `${recipient.slice(0, 10)}...${recipient.slice(-8)}` : recipient}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Estimated Gas Fee:</span>
+                  <span className="font-mono text-emerald-400 font-bold">
+                    ~${estimatedGasUsd < 0.01 ? estimatedGasUsd.toFixed(4) : estimatedGasUsd.toFixed(2)} USD
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Authentication & Security Form */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 border-b border-slate-800 pb-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Security & Password Authorization</span>
+              </div>
+
+              {/* Password Challenge */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                  Account Password
+                </label>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="Enter your NexusPay password"
+                  className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                />
+              </div>
+
+              {/* 2FA Authenticator Challenge */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-300 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    2FA Authenticator Code / Token
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAuth2faCode('849201')}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-mono underline"
+                  >
+                    Auto-Fill 2FA: 849201
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={auth2faCode}
+                  onChange={(e) => setAuth2faCode(e.target.value)}
+                  placeholder="Enter 6-digit Google Authenticator code"
+                  className="w-full bg-slate-900 text-emerald-300 font-mono tracking-widest text-center text-sm font-bold rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthStep('FORM');
+                  setErrorMessage('');
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
+              >
+                ← Back
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExecuteTransfer}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                <span>Confirm & Execute Transfer</span>
+              </button>
+            </div>
 
           </div>
         )}

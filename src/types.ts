@@ -2,6 +2,13 @@ export interface UserAccount {
   id: string;
   username: string;
   email: string;
+  fullName?: string;
+  phoneNumber?: string;
+  identificationNumber?: string;
+  idType?: 'NATIONAL_ID' | 'PASSPORT' | 'DRIVERS_LICENSE' | 'TAX_ID';
+  idProofDocumentName?: string;
+  idProofDataUrl?: string;
+  kycStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED';
   passwordHash?: string;
   secretRecoveryCode: string;
   isRecoveryKeyBackedUp: boolean;
