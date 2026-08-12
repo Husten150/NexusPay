@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { WalletState, PaymentStream, MerchantInvoice, TransactionAuditLog, YieldPosition } from '../types';
 import { getCoinInfo, ALL_COINS } from '../data/coinCatalog';
+import { LiveTradingGraph } from './LiveTradingGraph';
 import { 
   TrendingUp, 
   Wallet, 
@@ -251,6 +252,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Live Trading Graph for All Coins and Movement */}
+      <LiveTradingGraph />
 
       {/* Main Grid: Chart & Token Holdings */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

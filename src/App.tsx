@@ -233,14 +233,49 @@ export default function App() {
   const [yieldPositions, setYieldPositions] = useState<YieldPosition[]>(() => loadSavedState('yield', INITIAL_YIELD_POSITIONS));
   const [auditLogs, setAuditLogs] = useState<TransactionAuditLog[]>(() => loadSavedState('audit_logs', INITIAL_AUDIT_LOGS));
 
-  // Sync to LocalStorage
+  // Sync to LocalStorage (Global & Account Specific)
   useEffect(() => { saveState('auth_state', authState); }, [authState]);
-  useEffect(() => { saveState('wallet', wallet); }, [wallet]);
-  useEffect(() => { saveState('streams', streams); }, [streams]);
-  useEffect(() => { saveState('invoices', invoices); }, [invoices]);
-  useEffect(() => { saveState('remittance', remittances); }, [remittances]);
-  useEffect(() => { saveState('yield', yieldPositions); }, [yieldPositions]);
-  useEffect(() => { saveState('audit_logs', auditLogs); }, [auditLogs]);
+  useEffect(() => { 
+    saveState('wallet', wallet);
+    if (authState.isAuthenticated && authState.user) {
+      saveState(`user_wallet_${authState.user.id}`, wallet);
+    }
+  }, [wallet, authState]);
+
+  useEffect(() => { 
+    saveState('streams', streams);
+    if (authState.isAuthenticated && authState.user) {
+      saveState(`user_streams_${authState.user.id}`, streams);
+    }
+  }, [streams, authState]);
+
+  useEffect(() => { 
+    saveState('invoices', invoices);
+    if (authState.isAuthenticated && authState.user) {
+      saveState(`user_invoices_${authState.user.id}`, invoices);
+    }
+  }, [invoices, authState]);
+
+  useEffect(() => { 
+    saveState('remittance', remittances);
+    if (authState.isAuthenticated && authState.user) {
+      saveState(`user_remittance_${authState.user.id}`, remittances);
+    }
+  }, [remittances, authState]);
+
+  useEffect(() => { 
+    saveState('yield', yieldPositions);
+    if (authState.isAuthenticated && authState.user) {
+      saveState(`user_yield_${authState.user.id}`, yieldPositions);
+    }
+  }, [yieldPositions, authState]);
+
+  useEffect(() => { 
+    saveState('audit_logs', auditLogs);
+    if (authState.isAuthenticated && authState.user) {
+      saveState(`user_audit_logs_${authState.user.id}`, auditLogs);
+    }
+  }, [auditLogs, authState]);
 
   const handleLoginSuccess = (user: UserAccount) => {
     const userWalletAddress = user.walletAddress || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
@@ -251,13 +286,49 @@ export default function App() {
       user: updatedUser
     });
 
-    setWallet((prev) => ({
-      ...prev,
-      address: userWalletAddress,
-      isConnected: true,
-    }));
+    // Load account-specific persistent state if available
+    const savedUserWallet = loadSavedState(`user_wallet_${user.id}`, null);
+    const savedUserStreams = loadSavedState(`user_streams_${user.id}`, null);
+    const savedUserInvoices = loadSavedState(`user_invoices_${user.id}`, null);
+    const savedUserRemittances = loadSavedState(`user_remittance_${user.id}`, null);
+    const savedUserYield = loadSavedState(`user_yield_${user.id}`, null);
+    const savedUserAuditLogs = loadSavedState(`user_audit_logs_${user.id}`, null);
 
-    showToast(`Welcome, ${updatedUser.username}! Wallet linked: ${userWalletAddress.slice(0, 6)}...${userWalletAddress.slice(-4)}`);
+    if (savedUserWallet) {
+      setWallet({ ...savedUserWallet, isConnected: true, address: userWalletAddress });
+    } else {
+      setWallet({
+        ...INITIAL_WALLET,
+        address: userWalletAddress,
+        isConnected: true,
+      });
+    }
+
+    if (savedUserStreams) setStreams(savedUserStreams);
+    if (savedUserInvoices) setInvoices(savedUserInvoices);
+    if (savedUserRemittances) setRemittances(savedUserRemittances);
+    if (savedUserYield) setYieldPositions(savedUserYield);
+
+    if (savedUserAuditLogs) {
+      setAuditLogs(savedUserAuditLogs);
+    } else {
+      // Create initial audit log for new logged in user
+      const initLog: TransactionAuditLog = {
+        id: `log-init-${Date.now().toString().slice(-4)}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        txHash: `0x${Math.random().toString(16).slice(2, 10)}...${userWalletAddress.slice(-4)}`,
+        type: 'REMITTANCE',
+        summary: `User Account Verified & Signed In: ${user.username} (${user.email})`,
+        amountUsd: 0,
+        chain: 'Polygon',
+        status: 'CONFIRMED',
+        gasFeeUsd: 0.00,
+        aiRiskLevel: 'SAFE',
+      };
+      setAuditLogs([initLog]);
+    }
+
+    showToast(`Signed in to account @${updatedUser.username}! Wallet linked: ${userWalletAddress.slice(0, 6)}...${userWalletAddress.slice(-4)}`);
   };
 
   const handleUpdateUser = (updatedUser: UserAccount) => {
@@ -461,8 +532,16 @@ export default function App() {
 
   // Transfer execution handler
   const handleCompleteTransfer = (amount: number, token: string, recipient: string, txHash: string) => {
+    if (!authState.isAuthenticated) {
+      setAuthReason('Sending transactions requires signing in to an account.');
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     const coinInfo = getCoinInfo(token);
     const usdEquivalent = amount * coinInfo.priceUsd;
+    const user = authState.user;
 
     setWallet((prev) => ({
       ...prev,
@@ -478,7 +557,7 @@ export default function App() {
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
       txHash,
       type: 'REMITTANCE',
-      summary: `Real-time Transfer Sent: ${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) to ${recipient}`,
+      summary: `[Account: ${user?.username}] Sent ${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) to ${recipient}`,
       amountUsd: usdEquivalent,
       chain: wallet.chain,
       status: 'CONFIRMED',
@@ -487,13 +566,21 @@ export default function App() {
     };
 
     setAuditLogs((prev) => [newLog, ...prev]);
-    showToast(`Transferred ${amount} ${token} on-chain!`);
+    showToast(`Transferred ${amount} ${token} on-chain for account @${user?.username}!`);
   };
 
   // Receive funds callback
   const handleReceiveFunds = (amount: number, token: string, sender: string) => {
+    if (!authState.isAuthenticated) {
+      setAuthReason('Receiving funds into an account requires signing in.');
+      setShowAuthModal(true);
+      showToast('🔒 Transaction blocked: Please sign in or create an account.');
+      return;
+    }
+
     const coinInfo = getCoinInfo(token);
     const usdEquivalent = amount * coinInfo.priceUsd;
+    const user = authState.user;
 
     setWallet((prev) => ({
       ...prev,
@@ -509,7 +596,7 @@ export default function App() {
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
       txHash: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
       type: 'INVOICE_PAYMENT',
-      summary: `Real-time Payment Received: +${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) from ${sender}`,
+      summary: `[Account: ${user?.username}] Received +${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) from ${sender}`,
       amountUsd: usdEquivalent,
       chain: wallet.chain,
       status: 'CONFIRMED',
@@ -518,7 +605,7 @@ export default function App() {
     };
 
     setAuditLogs((prev) => [newLog, ...prev]);
-    showToast(`Received +${amount} ${token} in real time!`);
+    showToast(`Received +${amount} ${token} into account @${user?.username}!`);
   };
 
   // Stream Handlers
