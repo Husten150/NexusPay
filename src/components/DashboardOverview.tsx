@@ -57,6 +57,26 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 }) => {
   const [coinSearch, setCoinSearch] = useState('');
 
+  const isLoggedIn = Boolean(authState?.isAuthenticated && authState.user);
+
+  // Filter or aggregate data depending on whether user is logged in
+  const displayedAuditLogs = isLoggedIn
+    ? auditLogs.filter((log) => {
+        const u = authState?.user;
+        if (!u) return true;
+        return (
+          log.summary.toLowerCase().includes(u.username.toLowerCase()) ||
+          log.summary.toLowerCase().includes(u.email.toLowerCase()) ||
+          (u.walletAddress && log.txHash.toLowerCase().includes(u.walletAddress.toLowerCase().slice(2, 8)))
+        );
+      })
+    : auditLogs;
+
+  // Use personal user metrics when logged in vs aggregate protocol metrics when logged out
+  const displayedTreasuryBalance = isLoggedIn
+    ? wallet.balanceUsd
+    : 184520 + auditLogs.reduce((acc, curr) => acc + (curr.status === 'CONFIRMED' ? curr.amountUsd : 0), 0);
+
   const activeStreams = streams.filter((s) => s.status === 'ACTIVE');
   const monthlyOutflow = activeStreams.reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -115,7 +135,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Total Web3 Treasury
+              {isLoggedIn ? `${authState?.user?.username}'s Account Treasury` : 'Global Treasury (All Project Users)'}
             </span>
             <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
               <Wallet className="w-4 h-4" />
@@ -123,10 +143,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              ${wallet.balanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${displayedTreasuryBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> +8.4% this month
+              <TrendingUp className="w-3.5 h-3.5" />
+              {isLoggedIn ? 'Personal Wallet & Linked Accounts' : 'Complete Platform Multi-User Aggregate'}
             </div>
           </div>
         </div>
@@ -341,7 +362,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-          {auditLogs.map((log) => (
+          {(displayedAuditLogs.length > 0 ? displayedAuditLogs : auditLogs).map((log) => (
             <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${

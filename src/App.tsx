@@ -281,12 +281,26 @@ export default function App() {
     showToast('Profile & KYC Identification updated successfully!');
   };
 
+  // Enforce no connected wallet & block transactions when logged out
+  useEffect(() => {
+    if (!authState.isAuthenticated) {
+      setWallet((prev) => ({
+        ...prev,
+        isConnected: false,
+      }));
+    }
+  }, [authState.isAuthenticated]);
+
   const handleLogout = () => {
     setAuthState({
       isAuthenticated: false,
       user: null
     });
-    showToast('Signed out of account.');
+    setWallet((prev) => ({
+      ...prev,
+      isConnected: false
+    }));
+    showToast('Signed out of account. Wallet disconnected.');
   };
 
   const showToast = (msg: string) => {

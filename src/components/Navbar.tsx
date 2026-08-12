@@ -155,14 +155,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Wallet Connect Button */}
           <button
-            onClick={onOpenWalletModal}
+            onClick={() => {
+              if (!authState.isAuthenticated) {
+                onOpenAuthModal();
+              } else {
+                onOpenWalletModal();
+              }
+            }}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 hover:bg-slate-800 transition-all shadow-md active:scale-95"
           >
             <Wallet className="w-3.5 h-3.5 text-indigo-400 dark:text-white" />
             <span className="font-mono font-semibold tracking-tight">
-              {wallet.address.length > 12 
-                ? `${wallet.address.slice(0, 5)}...${wallet.address.slice(-4)}`
-                : wallet.address
+              {authState.isAuthenticated && wallet.isConnected
+                ? (wallet.address.length > 12 
+                    ? `${wallet.address.slice(0, 5)}...${wallet.address.slice(-4)}`
+                    : wallet.address)
+                : 'Connect Wallet'
               }
             </span>
           </button>

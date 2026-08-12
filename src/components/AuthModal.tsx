@@ -30,9 +30,15 @@ import {
   BadgeCheck,
   CreditCard,
   Save,
-  Landmark
+  Landmark,
+  Globe,
+  MapPin,
+  Sparkles,
+  Camera
 } from 'lucide-react';
 import { UserAccount, AuthState } from '../types';
+import { SUPPORTED_COUNTRIES, getCountryConfig } from '../data/countryBankingCatalog';
+import { FacialRecognitionStep } from './FacialRecognitionStep';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -138,6 +144,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [enableBiometricInSignup, setEnableBiometricInSignup] = useState(true);
+
+  // Country & Location Banking System Signup Fields
+  const [signupCountryCode, setSignupCountryCode] = useState('NG');
+  const [signupPhone, setSignupPhone] = useState('');
+  const [signupFullName, setSignupFullName] = useState('');
+  const [signupIdType, setSignupIdType] = useState<'NATIONAL_ID' | 'PASSPORT' | 'DRIVERS_LICENSE' | 'TAX_ID'>('NATIONAL_ID');
+  const [signupIdNumber, setSignupIdNumber] = useState('');
+  const [signupBvn, setSignupBvn] = useState('');
+  const [signupBankName, setSignupBankName] = useState('');
+  const [signupBankAccountNumber, setSignupBankAccountNumber] = useState('');
+  const [signupBankRoutingNumber, setSignupBankRoutingNumber] = useState('');
+  const [signupWithdrawalPin, setSignupWithdrawalPin] = useState('');
+  const [signupFacialScanUrl, setSignupFacialScanUrl] = useState('');
+  const [signupFacialVerified, setSignupFacialVerified] = useState(false);
   
   // Generated Secret Recovery Code State for Signup
   const [generatedCodeObj, setGeneratedCodeObj] = useState<{ mnemonic: string; formattedCode: string } | null>(null);
@@ -324,13 +344,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 1000);
   };
 
-  // 3. SIGNUP HANDLER
+  // 3. SIGNUP HANDLER WITH STRICT LOCATION BANKING & KYC
   const handleSignupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
+    const activeCountry = getCountryConfig(signupCountryCode);
+
     if (!signupUsername.trim() || !signupEmail.trim() || !signupPassword) {
-      setErrorMessage('Please fill in all required account fields.');
+      setErrorMessage('Please fill in all basic account credentials.');
+      return;
+    }
+
+    if (!signupPhone.trim()) {
+      setErrorMessage('Phone number is required for account SMS 2FA & location banking verification.');
+      return;
+    }
+
+    if (!signupIdNumber.trim()) {
+      setErrorMessage(`Identification Number (${activeCountry.idTypes[0]?.label || 'ID'}) is required.`);
+      return;
+    }
+
+    if (!signupBvn.trim()) {
+      setErrorMessage(`${activeCountry.bvnLabel} is required to interface with ${activeCountry.name}'s banking system.`);
+      return;
+    }
+
+    if (!signupWithdrawalPin.trim() || signupWithdrawalPin.trim().length < 4) {
+      setErrorMessage('Please set a valid 4-to-6 digit Withdrawal Security PIN.');
+      return;
+    }
+
+    if (!signupFacialVerified && !signupFacialScanUrl) {
+      setErrorMessage('Mandatory Facial Recognition scan is required to create an account.');
       return;
     }
 
@@ -350,20 +397,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const generatedWallet = generateRandomWalletAddress();
 
+    const bankAccountObj = signupBankAccountNumber.trim() ? {
+      bankName: signupBankName.trim() || `${activeCountry.name} Partner Bank`,
+      accountName: signupFullName.trim() || signupUsername.trim(),
+      accountNumber: signupBankAccountNumber.trim(),
+      routingNumber: signupBankRoutingNumber.trim() || activeCountry.routingCodeLabel,
+      currency: activeCountry.currency,
+      isVerified: true
+    } : undefined;
+
     const newUser: UserAccount = {
       id: `usr-${Date.now()}`,
       username: signupUsername.trim(),
       email: signupEmail.trim(),
+      fullName: signupFullName.trim() || signupUsername.trim(),
+      phoneNumber: signupPhone.trim(),
+      countryCode: signupCountryCode,
+      countryName: activeCountry.name,
+      idType: signupIdType,
+      identificationNumber: signupIdNumber.trim(),
+      bvnOrTaxId: signupBvn.trim(),
+      facialRecognitionStatus: 'VERIFIED',
+      facialScanDataUrl: signupFacialScanUrl,
+      withdrawalPin: signupWithdrawalPin.trim(),
+      kycStatus: 'VERIFIED',
+      bankAccount: bankAccountObj,
       secretRecoveryCode: codeToSave,
       isRecoveryKeyBackedUp: true,
-      biometricRegistered: enableBiometricInSignup,
-      biometricCredentialId: enableBiometricInSignup ? `webauthn-${Date.now()}` : undefined,
+      biometricRegistered: true,
+      biometricCredentialId: `webauthn-${Date.now()}`,
       walletAddress: generatedWallet,
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     };
 
-    // Persist user
+    // Persist user in local storage
     const savedUsersRaw = localStorage.getItem('nexuspay_users');
     let usersList: UserAccount[] = [];
     if (savedUsersRaw) {
@@ -377,7 +445,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setPendingUser(newUser);
     setTotpCode('');
     setMode('GOOGLE_2FA');
-    setSuccessMessage('Account created! Please enter your 6-digit Google Authenticator code to complete sign in.');
+    setSuccessMessage(`Account created & KYC Verified for ${activeCountry.name}! Enter 6-digit Google Authenticator code.`);
   };
 
   // 4. RECOVERY HANDLER
@@ -425,10 +493,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200 cursor-pointer"
     >
       
-      {/* Bybit-Style Compact Floating Modal Box */}
+      {/* Compact Floating Modal Box */}
       <div 
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${authState.isAuthenticated ? 'max-w-sm' : 'max-w-md'} my-auto bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col text-slate-200 animate-in zoom-in-95 duration-150 cursor-default max-h-[88vh]`}
+        className={`w-full ${authState.isAuthenticated ? 'max-w-sm' : mode === 'SIGNUP' ? 'max-w-lg' : 'max-w-md'} my-auto bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col text-slate-200 animate-in zoom-in-95 duration-150 cursor-default max-h-[90vh]`}
       >
         
         {/* Header */}
@@ -444,8 +512,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <h2 className="text-xs font-bold text-white flex items-center gap-1.5">
                 <span>{authState.isAuthenticated ? 'Account Profile' : mode === 'GOOGLE_2FA' ? 'Google Authenticator 2FA' : 'Sign In / Sign Up'}</span>
-                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Bybit Secure
+                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Secure Vault
                 </span>
               </h2>
               <p className="text-[10px] text-slate-400">
@@ -916,30 +984,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   Cancel
                 </button>
               </div>
-
-              <div className="pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const demoUser: UserAccount = {
-                      id: 'usr-01',
-                      username: 'enterprise_treasurer',
-                      email: 'treasury@nexuspay.io',
-                      secretRecoveryCode: 'NEXUS-KEY-8F2A-9E11-7BC3-4D00 (nexus shield vault matrix orbital stellar horizon beacon cipher quantum solstice zenith)',
-                      isRecoveryKeyBackedUp: true,
-                      walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-                      createdAt: '2026-08-01T12:00:00.000Z',
-                      lastLoginAt: new Date().toISOString(),
-                    };
-                    onLoginSuccess(demoUser);
-                    onClose();
-                  }}
-                  className="w-full py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
-                >
-                  <Zap className="w-4 h-4 text-emerald-400" />
-                  <span>1-Click Instant Enterprise Login</span>
-                </button>
-              </div>
             </form>
           )}
 
@@ -1062,77 +1106,300 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* VIEW 4: SIGNUP FORM */}
+          {/* VIEW 4: LOCATION BANKING & KYC SIGNUP FORM */}
           {!authState.isAuthenticated && mode === 'SIGNUP' && (
             <form onSubmit={handleSignupSubmit} className="space-y-3 animate-in fade-in duration-150">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Country / Location Selector Banner */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-indigo-400" />
+                    Select Your Country / Banking Region
+                  </span>
+                  <span className="text-[10px] text-indigo-400 font-mono font-bold">
+                    Global Location Banking
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Country Jurisdiction
+                    </label>
+                    <select
+                      value={signupCountryCode}
+                      onChange={(e) => {
+                        const newCountry = e.target.value;
+                        setSignupCountryCode(newCountry);
+                        const cfg = getCountryConfig(newCountry);
+                        if (cfg.idTypes[0]) {
+                          setSignupIdType(cfg.idTypes[0].id as any);
+                        }
+                      }}
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-medium"
+                    >
+                      {SUPPORTED_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.name} ({c.currency})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Banking Currency System
+                    </label>
+                    <div className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono font-bold text-emerald-400 flex items-center justify-between">
+                      <span>{getCountryConfig(signupCountryCode).currencyName}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px]">
+                        {getCountryConfig(signupCountryCode).currency}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic User Credentials */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
+                  <label className="block text-[10px] font-semibold text-slate-300 mb-0.5">
                     Username / Handle
                   </label>
                   <div className="relative">
-                    <User className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                    <User className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
                     <input
                       type="text"
                       value={signupUsername}
                       onChange={(e) => setSignupUsername(e.target.value)}
                       placeholder="treasury_admin"
-                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-950 text-white rounded-lg pl-8 pr-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
+                  <label className="block text-[10px] font-semibold text-slate-300 mb-0.5">
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                    <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
                     <input
                       type="email"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       placeholder="admin@company.com"
-                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-950 text-white rounded-lg pl-8 pr-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-medium"
                       required
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Full Legal Name & Phone Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Password
+                  <label className="block text-[10px] font-semibold text-slate-300 mb-0.5">
+                    Full Legal Name
+                  </label>
+                  <input
+                    type="text"
+                    value={signupFullName}
+                    onChange={(e) => setSignupFullName(e.target.value)}
+                    placeholder="First & Last Legal Name"
+                    className="w-full bg-slate-950 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-medium"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-300 mb-0.5">
+                    Phone Number ({getCountryConfig(signupCountryCode).phonePrefix})
                   </label>
                   <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                    <Phone className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
                     <input
-                      type="password"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      type="tel"
+                      value={signupPhone}
+                      onChange={(e) => setSignupPhone(e.target.value)}
+                      placeholder={`${getCountryConfig(signupCountryCode).phonePrefix} 801 234 5678`}
+                      className="w-full bg-slate-950 text-white rounded-lg pl-8 pr-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Identification Details & Country Bank Verification Number */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                    {getCountryConfig(signupCountryCode).name} Location Identity Verification (KYC)
+                  </span>
+                  <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    Mandatory
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Select Government ID Type
+                    </label>
+                    <select
+                      value={signupIdType}
+                      onChange={(e) => setSignupIdType(e.target.value as any)}
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none text-xs font-medium"
+                    >
+                      {getCountryConfig(signupCountryCode).idTypes.map((idOpt) => (
+                        <option key={idOpt.id} value={idOpt.id}>
+                          {idOpt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Identification Number
+                    </label>
+                    <input
+                      type="text"
+                      value={signupIdNumber}
+                      onChange={(e) => setSignupIdNumber(e.target.value)}
+                      placeholder="Enter ID / Document Number"
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Confirm Password
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 flex items-center gap-1">
+                    <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    {getCountryConfig(signupCountryCode).bvnLabel}
                   </label>
-                  <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={signupBvn}
+                    onChange={(e) => setSignupBvn(e.target.value)}
+                    placeholder={getCountryConfig(signupCountryCode).bvnPlaceholder}
+                    className="w-full bg-slate-900 text-emerald-300 font-mono rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs font-bold"
+                    required
+                  />
+                  <p className="text-[9px] text-slate-500 mt-0.5">
+                    {getCountryConfig(signupCountryCode).bvnDescription}
+                  </p>
+                </div>
+              </div>
+
+              {/* Mandatory Facial Recognition Biometric Scan Step */}
+              <FacialRecognitionStep
+                isVerified={signupFacialVerified}
+                onScanComplete={(dataUrl) => {
+                  setSignupFacialScanUrl(dataUrl);
+                  setSignupFacialVerified(true);
+                }}
+              />
+
+              {/* Password & Withdrawal Security PIN */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                    Account Password & Withdrawal PIN
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Account Password
+                    </label>
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Confirm Password
+                    </label>
                     <input
                       type="password"
                       value={signupConfirmPassword}
                       onChange={(e) => setSignupConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-950 text-white rounded-xl pl-8 pr-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none text-xs"
                       required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-amber-400 mb-0.5 flex items-center gap-1">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    Withdrawal Security PIN (4-6 Digits)
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={signupWithdrawalPin}
+                    onChange={(e) => setSignupWithdrawalPin(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="Enter 4 or 6 digit PIN (e.g. 8821)"
+                    className="w-full bg-slate-900 text-amber-300 font-mono tracking-widest text-center rounded-lg px-2.5 py-1.5 border border-amber-500/40 focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm font-bold"
+                    required
+                  />
+                  <p className="text-[9px] text-slate-400 mt-0.5">
+                    Required to confirm any crypto or fiat bank withdrawals from your wallet.
+                  </p>
+                </div>
+              </div>
+
+              {/* Linked Bank Account Details (Optional / Convenient for immediate withdrawals) */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+                    Link {getCountryConfig(signupCountryCode).name} Bank Account
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-mono">
+                    Direct Payout
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={signupBankName}
+                      onChange={(e) => setSignupBankName(e.target.value)}
+                      placeholder={`e.g. ${getCountryConfig(signupCountryCode).name} National Bank`}
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Account / NUBAN / IBAN Number
+                    </label>
+                    <input
+                      type="text"
+                      value={signupBankAccountNumber}
+                      onChange={(e) => setSignupBankAccountNumber(e.target.value)}
+                      placeholder="Enter Bank Account Number"
+                      className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -1167,7 +1434,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     />
                     <span className="text-[10px] text-slate-300">
-                      I have backed up this recovery code securely.
+                      I have backed up my Secret Recovery Code & KYC details securely.
                     </span>
                   </label>
                 </div>
@@ -1176,10 +1443,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="submit"
-                  className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   <UserCheck className="w-4 h-4" />
-                  <span>Create & Enable Google 2FA</span>
+                  <span>Verify Location KYC & Create Account</span>
                 </button>
 
                 <button

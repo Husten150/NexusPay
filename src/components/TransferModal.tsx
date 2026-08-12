@@ -24,7 +24,8 @@ import {
   Building2,
   CreditCard,
   ArrowDownRight,
-  Banknote
+  Banknote,
+  KeyRound
 } from 'lucide-react';
 
 interface TransferModalProps {
@@ -109,6 +110,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   // Transfer security authorization inputs
   const [authStep, setAuthStep] = useState<'FORM' | 'AUTHENTICATING'>('FORM');
   const [authPassword, setAuthPassword] = useState('');
+  const [authWithdrawalPin, setAuthWithdrawalPin] = useState('');
   const [auth2faCode, setAuth2faCode] = useState('');
 
   // Keep selectedChain synced with wallet or auto-adjust based on token primary network
@@ -222,13 +224,20 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
   const handleExecuteTransfer = async () => {
     if (!authPassword) {
-      setErrorMessage('🔒 Password required: Please enter your NexusPay account password.');
+      setErrorMessage('🔒 Password required: Please enter your account password.');
       return;
     }
 
     if (authState.user?.passwordHash && authPassword !== authState.user.passwordHash) {
       setErrorMessage('❌ Invalid account password provided. Please check and try again.');
       return;
+    }
+
+    if (authState.user?.withdrawalPin) {
+      if (!authWithdrawalPin || authWithdrawalPin.trim() !== authState.user.withdrawalPin) {
+        setErrorMessage('🔑 Invalid Withdrawal Security PIN. Please enter your correct 4-6 digit PIN.');
+        return;
+      }
     }
 
     if (!auth2faCode || auth2faCode.trim().length < 6) {
@@ -780,8 +789,24 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                   type="password"
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
-                  placeholder="Enter your NexusPay password"
+                  placeholder="Enter your account password"
                   className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                />
+              </div>
+
+              {/* Withdrawal Security PIN Challenge */}
+              <div>
+                <label className="block text-[11px] font-semibold text-amber-400 mb-1 flex items-center gap-1">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                  Withdrawal Security PIN
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={authWithdrawalPin}
+                  onChange={(e) => setAuthWithdrawalPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="Enter 4-6 digit PIN"
+                  className="w-full bg-slate-900 text-amber-300 font-mono tracking-widest text-center font-bold text-xs rounded-xl px-3 py-2 border border-amber-500/30 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 

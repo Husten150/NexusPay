@@ -3,8 +3,10 @@ export interface BankAccountDetails {
   accountName: string;
   accountNumber: string;
   routingNumber?: string;
+  bankVerificationNumber?: string; // BVN, SSN, IBAN, CPF, Aadhaar, SIN, etc.
   accountType?: 'CHECKING' | 'SAVINGS' | 'BUSINESS';
   currency?: string;
+  country?: string;
   isVerified?: boolean;
 }
 
@@ -13,11 +15,16 @@ export interface UserAccount {
   username: string;
   email: string;
   fullName?: string;
+  country?: string;
   phoneNumber?: string;
   identificationNumber?: string;
-  idType?: 'NATIONAL_ID' | 'PASSPORT' | 'DRIVERS_LICENSE' | 'TAX_ID';
+  idType?: 'NATIONAL_ID' | 'PASSPORT' | 'DRIVERS_LICENSE' | 'TAX_ID' | 'VOTER_CARD' | 'SOCIAL_SECURITY';
+  bankVerificationNumber?: string; // BVN / SSN / IBAN / CPF / Aadhaar
   idProofDocumentName?: string;
   idProofDataUrl?: string;
+  facialRecognitionStatus?: 'VERIFIED' | 'PENDING' | 'FAILED';
+  facialScanDataUrl?: string;
+  withdrawalPin?: string; // 4-digit or 6-digit transaction PIN
   kycStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED';
   bankAccount?: BankAccountDetails;
   passwordHash?: string;
