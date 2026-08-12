@@ -29,7 +29,8 @@ import {
   Upload,
   BadgeCheck,
   CreditCard,
-  Save
+  Save,
+  Landmark
 } from 'lucide-react';
 import { UserAccount, AuthState } from '../types';
 
@@ -96,6 +97,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [identificationNumber, setIdentificationNumber] = useState(authState.user?.identificationNumber || '');
   const [idProofDocumentName, setIdProofDocumentName] = useState(authState.user?.idProofDocumentName || '');
   const [idProofDataUrl, setIdProofDataUrl] = useState(authState.user?.idProofDataUrl || '');
+
+  // Linked Bank Account State
+  const [bankName, setBankName] = useState(authState.user?.bankAccount?.bankName || '');
+  const [bankAccountName, setBankAccountName] = useState(authState.user?.bankAccount?.accountName || '');
+  const [bankAccountNumber, setBankAccountNumber] = useState(authState.user?.bankAccount?.accountNumber || '');
+  const [bankRoutingNumber, setBankRoutingNumber] = useState(authState.user?.bankAccount?.routingNumber || '');
+  const [bankCurrency, setBankCurrency] = useState(authState.user?.bankAccount?.currency || 'USD');
+
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
 
@@ -107,6 +116,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setIdentificationNumber(authState.user.identificationNumber || '');
       setIdProofDocumentName(authState.user.idProofDocumentName || '');
       setIdProofDataUrl(authState.user.idProofDataUrl || '');
+      if (authState.user.bankAccount) {
+        setBankName(authState.user.bankAccount.bankName || '');
+        setBankAccountName(authState.user.bankAccount.accountName || '');
+        setBankAccountNumber(authState.user.bankAccount.accountNumber || '');
+        setBankRoutingNumber(authState.user.bankAccount.routingNumber || '');
+        setBankCurrency(authState.user.bankAccount.currency || 'USD');
+      }
     }
   }, [authState.user, isOpen]);
 
@@ -185,6 +201,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!authState.user) return;
     setIsSavingProfile(true);
 
+    const bankAccountObj = (bankName.trim() && bankAccountNumber.trim()) ? {
+      bankName: bankName.trim(),
+      accountName: bankAccountName.trim() || fullName.trim() || authState.user.username,
+      accountNumber: bankAccountNumber.trim(),
+      routingNumber: bankRoutingNumber.trim(),
+      currency: bankCurrency,
+      isVerified: true
+    } : authState.user.bankAccount;
+
     const updatedUser: UserAccount = {
       ...authState.user,
       fullName: fullName.trim() || authState.user.username,
@@ -194,6 +219,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       idProofDocumentName,
       idProofDataUrl,
       kycStatus: identificationNumber.trim() ? 'VERIFIED' : 'PENDING',
+      bankAccount: bankAccountObj,
     };
 
     setTimeout(() => {
@@ -201,7 +227,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onUpdateUser(updatedUser);
       }
       setIsSavingProfile(false);
-      setProfileSuccessMsg('Profile, phone number & identification details updated successfully!');
+      setProfileSuccessMsg('Profile, KYC & Linked Bank Account updated successfully!');
       setTimeout(() => setProfileSuccessMsg(null), 3500);
     }, 350);
   };
@@ -402,29 +428,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       {/* Bybit-Style Compact Floating Modal Box */}
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md my-auto bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col text-slate-200 animate-in zoom-in-95 duration-150 cursor-default"
+        className={`w-full ${authState.isAuthenticated ? 'max-w-sm' : 'max-w-md'} my-auto bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col text-slate-200 animate-in zoom-in-95 duration-150 cursor-default max-h-[88vh]`}
       >
         
         {/* Header */}
-        <div className="px-5 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+        <div className="px-4 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
               {mode === 'GOOGLE_2FA' ? (
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
               ) : (
-                <User className="w-5 h-5 text-indigo-400" />
+                <User className="w-4 h-4 text-indigo-400" />
               )}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <span>{authState.isAuthenticated ? 'Enterprise Profile' : mode === 'GOOGLE_2FA' ? 'Google Authenticator 2FA' : 'Sign In / Sign Up'}</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Bybit Secure Auth
+              <h2 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>{authState.isAuthenticated ? 'Account Profile' : mode === 'GOOGLE_2FA' ? 'Google Authenticator 2FA' : 'Sign In / Sign Up'}</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  Bybit Secure
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[10px] text-slate-400">
                 {authState.isAuthenticated 
-                  ? 'Account details & security' 
+                  ? 'Personal details & KYC settings' 
                   : mode === 'GOOGLE_2FA' 
                   ? 'Enter 6-digit TOTP security code' 
                   : 'NexusPay Treasury & Settlement'}
@@ -434,19 +460,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
+            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
             title="Cancel / Close"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Tab Switcher if not logged in and not in 2FA step */}
         {!authState.isAuthenticated && mode !== 'GOOGLE_2FA' && (
-          <div className="flex border-b border-slate-800 bg-slate-950 p-1 text-xs font-bold">
+          <div className="flex border-b border-slate-800 bg-slate-950 p-1 text-xs font-bold shrink-0">
             <button
               onClick={() => { setMode('LOGIN'); setErrorMessage(null); setSuccessMessage(null); }}
-              className={`flex-1 py-2 rounded-xl transition-all ${
+              className={`flex-1 py-1.5 rounded-lg transition-all text-xs ${
                 mode === 'LOGIN' 
                   ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-400 hover:text-white'
@@ -456,7 +482,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
             <button
               onClick={handleSwitchToSignup}
-              className={`flex-1 py-2 rounded-xl transition-all ${
+              className={`flex-1 py-1.5 rounded-lg transition-all text-xs ${
                 mode === 'SIGNUP' 
                   ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-400 hover:text-white'
@@ -466,7 +492,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
             <button
               onClick={() => { setMode('RECOVER'); setErrorMessage(null); setSuccessMessage(null); }}
-              className={`flex-1 py-2 rounded-xl transition-all ${
+              className={`flex-1 py-1.5 rounded-lg transition-all text-xs ${
                 mode === 'RECOVER' 
                   ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-400 hover:text-white'
@@ -478,17 +504,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Content Body */}
-        <div className="p-5 space-y-4 text-xs">
+        <div className="p-3.5 space-y-3 text-xs overflow-y-auto">
           
           {/* Reason Banner if triggered by blocked transaction */}
           {authReason && !authState.isAuthenticated && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 font-medium flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 font-medium flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="space-y-0.5">
-                <div className="font-bold text-xs text-amber-300 uppercase tracking-wider">
+                <div className="font-bold text-[10px] text-amber-300 uppercase tracking-wider">
                   Authentication Required
                 </div>
-                <p className="text-[11px] leading-relaxed text-amber-200/90">
+                <p className="text-[10px] leading-relaxed text-amber-200/90">
                   {authReason}
                 </p>
               </div>
@@ -497,137 +523,124 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Error & Success Messages */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 font-medium flex items-center gap-2 animate-in fade-in">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 font-medium flex items-center gap-2 text-xs animate-in fade-in">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-rose-400" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium flex items-center gap-2 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium flex items-center gap-2 text-xs animate-in fade-in">
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
               <span>{successMessage}</span>
             </div>
           )}
 
-          {/* VIEW 1: LOGGED IN USER PROFILE */}
+          {/* VIEW 1: LOGGED IN USER PROFILE (COMPACT & SMALL SIZE) */}
           {authState.isAuthenticated && authState.user && (
-            <div className="space-y-4 animate-in fade-in duration-150">
+            <div className="space-y-2.5 animate-in fade-in duration-150">
               
-              {/* User Identity Overview Card */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-black flex items-center justify-center text-base shadow-md ring-2 ring-indigo-500/30">
+              {/* User Identity Overview Header */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-black flex items-center justify-center text-xs shadow ring-1 ring-indigo-500/30 shrink-0">
                       {authState.user.username.slice(0, 2).toUpperCase()}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-base text-white">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <h3 className="font-bold text-xs text-white truncate">
                           {fullName || authState.user.username}
                         </h3>
                         {identificationNumber && (
-                          <BadgeCheck className="w-4 h-4 text-emerald-400" title="Verified KYC" />
+                          <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" title="Verified KYC" />
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 font-mono">
+                      <p className="text-[10px] text-slate-400 font-mono truncate">
                         @{authState.user.username} • {authState.user.email}
                       </p>
                     </div>
                   </div>
 
-                  <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border flex items-center gap-1 ${
+                  <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] border shrink-0 flex items-center gap-1 ${
                     identificationNumber 
                       ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
                       : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                   }`}>
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    {identificationNumber ? 'KYC Verified' : 'KYC Pending'}
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    {identificationNumber ? 'Verified' : 'Pending'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-800 text-[11px]">
-                  <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80">
-                    <span className="text-slate-500 block">Account ID</span>
-                    <span className="font-mono text-slate-200 font-bold break-all">{authState.user.id}</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80">
-                    <span className="text-slate-500 block">Google 2FA</span>
+                {/* Account Details Badges */}
+                <div className="grid grid-cols-2 gap-1.5 text-[10px] pt-2 border-t border-slate-900">
+                  <div className="px-2 py-1 rounded bg-slate-900 border border-slate-800 flex justify-between items-center">
+                    <span className="text-slate-500">2FA Status</span>
                     <span className="text-emerald-400 font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Active
+                      <ShieldCheck className="w-2.5 h-2.5" /> Active
+                    </span>
+                  </div>
+                  <div className="px-2 py-1 rounded bg-slate-900 border border-slate-800 flex justify-between items-center">
+                    <span className="text-slate-500">Seed Phrase</span>
+                    <span className="text-slate-400 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5 text-emerald-400" /> Secured
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Linked Wallet Box */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                    <Wallet className="w-4 h-4 text-emerald-400" />
-                    Linked Web3 Wallet Address
+                {/* Linked Wallet Row */}
+                <div className="px-2 py-1.5 rounded bg-slate-900 border border-slate-800 text-[10px] flex items-center justify-between gap-2">
+                  <span className="text-slate-400 shrink-0 flex items-center gap-1 font-medium">
+                    <Wallet className="w-3 h-3 text-emerald-400" /> Wallet:
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono">On-Chain Sync</span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-xs text-emerald-300 break-all flex items-center justify-between gap-2">
-                  <span>{authState.user.walletAddress}</span>
+                  <span className="font-mono text-emerald-300 truncate text-[10px]">{authState.user.walletAddress}</span>
                   <button
                     type="button"
                     onClick={() => handleCopyCode(authState.user?.walletAddress || '')}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-white transition-all flex-shrink-0"
-                    title="Copy Wallet Address"
+                    className="p-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white transition-all shrink-0"
+                    title="Copy Address"
                   >
-                    {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedKey ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
                   </button>
                 </div>
+
+                {/* Linked Bank Account Row */}
+                {(authState.user.bankAccount || (bankName && bankAccountNumber)) && (
+                  <div className="px-2 py-1.5 rounded bg-slate-900 border border-slate-800 text-[10px] flex items-center justify-between gap-2">
+                    <span className="text-slate-400 shrink-0 flex items-center gap-1 font-medium">
+                      <Landmark className="w-3 h-3 text-emerald-400" /> Bank:
+                    </span>
+                    <span className="font-mono text-white truncate text-[10px]">
+                      {bankName || authState.user.bankAccount?.bankName} (****{(bankAccountNumber || authState.user.bankAccount?.accountNumber || '').slice(-4)})
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                      Linked & Verified
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Secret Recovery Code Notice (HIDDEN AFTER REGISTRATION FOR SECURITY) */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-300 text-xs flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                    Secret Recovery Code
+              {/* KYC Identification & Phone Form */}
+              <form onSubmit={handleSaveKYCProfile} className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="font-bold text-[11px] text-white flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
+                    KYC & Phone Details
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Copied & Secured
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1 leading-relaxed">
-                  <p className="text-slate-300 font-medium flex items-center gap-1.5">
-                    <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
-                    Hidden for account protection
-                  </p>
-                  <p>
-                    Your 12-word seed phrase and secret key were displayed and copied during account registration.
-                    It is permanently hidden from this profile screen to prevent shoulder-surfing and unauthorized copying.
-                  </p>
-                </div>
-              </div>
-
-              {/* KYC Identification & Phone Number Form */}
-              <form onSubmit={handleSaveKYCProfile} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3.5">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                    <CreditCard className="w-4 h-4 text-indigo-400" />
-                    Personal & KYC Identification Details
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">KYC Compliance</span>
+                  <span className="text-[9px] text-slate-400 font-mono">KYC Compliance</span>
                 </div>
 
                 {profileSuccessMsg && (
-                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>{profileSuccessMsg}</span>
                   </div>
                 )}
 
                 {/* Full Legal Name */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-indigo-400" />
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 flex items-center gap-1">
+                    <User className="w-3 h-3 text-indigo-400" />
                     Full Legal Name
                   </label>
                   <input
@@ -635,14 +648,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Johnathan Vance"
-                    className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                    className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] font-medium"
                   />
                 </div>
 
                 {/* Phone Number */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-indigo-400" />
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-indigo-400" />
                     Phone Number
                   </label>
                   <input
@@ -650,52 +663,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="+1 (555) 019-2834"
-                    className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium font-mono"
+                    className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] font-mono"
                   />
                 </div>
 
-                {/* Identification Type & Number */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Document Type & ID Number */}
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                      ID Document Type
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 flex items-center gap-1">
+                      <FileText className="w-3 h-3 text-indigo-400" />
+                      ID Type
                     </label>
                     <select
                       value={idType}
                       onChange={(e) => setIdType(e.target.value as any)}
-                      className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                      className="w-full bg-slate-900 text-white rounded-lg px-2 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] font-medium"
                     >
                       <option value="NATIONAL_ID">National ID / NIN</option>
-                      <option value="PASSPORT">International Passport</option>
+                      <option value="PASSPORT">Passport</option>
                       <option value="DRIVERS_LICENSE">Driver's License</option>
-                      <option value="TAX_ID">Tax Identification Number (TIN)</option>
+                      <option value="TAX_ID">Tax ID (TIN)</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                      <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
-                      Identification Number
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 flex items-center gap-1">
+                      <CreditCard className="w-3 h-3 text-indigo-400" />
+                      ID Number
                     </label>
                     <input
                       type="text"
                       value={identificationNumber}
                       onChange={(e) => setIdentificationNumber(e.target.value)}
-                      placeholder="e.g. A-9840219482"
-                      className="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium font-mono"
+                      placeholder="A-9840219482"
+                      className="w-full bg-slate-900 text-white rounded-lg px-2 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] font-mono"
                     />
                   </div>
                 </div>
 
-                {/* Proof of Identification Upload */}
+                {/* Proof Document Upload */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                    <Upload className="w-3.5 h-3.5 text-indigo-400" />
-                    Proof of Identification Document
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 flex items-center gap-1">
+                    <Upload className="w-3 h-3 text-indigo-400" />
+                    ID Proof Document
                   </label>
 
-                  <div className="relative border-2 border-dashed border-slate-800 rounded-xl p-3 bg-slate-900/60 hover:bg-slate-900 transition-all text-center">
+                  <div className="relative border border-dashed border-slate-800 rounded-lg p-2 bg-slate-900/60 hover:bg-slate-900 transition-all text-center">
                     <input
                       type="file"
                       accept="image/*,.pdf"
@@ -704,59 +717,121 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     />
                     
                     {idProofDocumentName ? (
-                      <div className="flex items-center justify-between p-2 rounded-lg bg-indigo-950/60 border border-indigo-800/80">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
                           {idProofDataUrl && idProofDataUrl.startsWith('data:image') ? (
-                            <img src={idProofDataUrl} alt="ID Preview" className="w-8 h-8 rounded object-cover border border-slate-700 shrink-0" />
+                            <img src={idProofDataUrl} alt="ID Preview" className="w-6 h-6 rounded object-cover border border-slate-700 shrink-0" />
                           ) : (
-                            <FileText className="w-6 h-6 text-indigo-400 shrink-0" />
+                            <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
                           )}
-                          <div className="text-left overflow-hidden">
-                            <span className="text-xs font-bold text-white block truncate">{idProofDocumentName}</span>
-                            <span className="text-[10px] text-emerald-400 font-medium">✓ Document Attached</span>
-                          </div>
+                          <span className="text-[10px] font-bold text-white truncate">{idProofDocumentName}</span>
                         </div>
-                        <span className="text-[10px] text-indigo-300 bg-indigo-900 px-2 py-1 rounded font-semibold shrink-0">Replace File</span>
+                        <span className="text-[9px] text-emerald-400 font-bold shrink-0">✓ Uploaded</span>
                       </div>
                     ) : (
-                      <div className="space-y-1">
-                        <Upload className="w-5 h-5 text-indigo-400 mx-auto" />
-                        <span className="text-xs text-slate-300 font-semibold block">Click or Drag & Drop Proof Document</span>
-                        <span className="text-[10px] text-slate-500 block">Upload Passport, Driver's License or National ID photo/PDF</span>
+                      <div className="flex items-center justify-center gap-1.5 text-slate-400">
+                        <Upload className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="text-[10px] font-medium">Attach ID Photo or PDF</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Submit Profile Save Button */}
+                {/* Linked Bank Account Section */}
+                <div className="pt-2 border-t border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[11px] text-white flex items-center gap-1">
+                      <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+                      Linked Bank Account
+                    </span>
+                    <span className="text-[9px] text-emerald-400 font-mono font-semibold">ACH / SEPA Wire</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="e.g. Chase / Barclays"
+                        className="w-full bg-slate-900 text-white rounded-lg px-2 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                        Account Holder Name
+                      </label>
+                      <input
+                        type="text"
+                        value={bankAccountName}
+                        onChange={(e) => setBankAccountName(e.target.value)}
+                        placeholder="Legal Account Name"
+                        className="w-full bg-slate-900 text-white rounded-lg px-2 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                        Account Number / IBAN
+                      </label>
+                      <input
+                        type="text"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                        placeholder="Account or IBAN Number"
+                        className="w-full bg-slate-900 text-white rounded-lg px-2 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                        Routing / SWIFT Code
+                      </label>
+                      <input
+                        type="text"
+                        value={bankRoutingNumber}
+                        onChange={(e) => setBankRoutingNumber(e.target.value)}
+                        placeholder="Routing or BIC Code"
+                        className="w-full bg-slate-900 text-white rounded-lg px-2 py-1.5 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Profile Button */}
                 <button
                   type="submit"
                   disabled={isSavingProfile}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                  className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all active:scale-95 disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>{isSavingProfile ? 'Saving Details...' : 'Save Profile & KYC Identification'}</span>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingProfile ? 'Saving...' : 'Save Profile & KYC'}</span>
                 </button>
               </form>
 
-              {/* Sign Out & Cancel Buttons */}
-              <div className="pt-1 flex items-center gap-2">
+              {/* Sign Out & Close Buttons */}
+              <div className="pt-0.5 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     onLogout();
                     onClose();
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                  className="flex-1 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-bold text-xs transition-all active:scale-95"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out of Account</span>
+                  Sign Out
                 </button>
 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
+                  className="px-4 py-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all active:scale-95"
                 >
                   Close
                 </button>

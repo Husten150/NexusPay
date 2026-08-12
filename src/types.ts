@@ -1,3 +1,13 @@
+export interface BankAccountDetails {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  routingNumber?: string;
+  accountType?: 'CHECKING' | 'SAVINGS' | 'BUSINESS';
+  currency?: string;
+  isVerified?: boolean;
+}
+
 export interface UserAccount {
   id: string;
   username: string;
@@ -9,6 +19,7 @@ export interface UserAccount {
   idProofDocumentName?: string;
   idProofDataUrl?: string;
   kycStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED';
+  bankAccount?: BankAccountDetails;
   passwordHash?: string;
   secretRecoveryCode: string;
   isRecoveryKeyBackedUp: boolean;

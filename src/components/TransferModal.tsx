@@ -19,7 +19,12 @@ import {
   Flame,
   Coins,
   Lock,
-  Sparkles
+  Sparkles,
+  Landmark,
+  Building2,
+  CreditCard,
+  ArrowDownRight,
+  Banknote
 } from 'lucide-react';
 
 interface TransferModalProps {
@@ -72,6 +77,29 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   const [lastRefreshedSec, setLastRefreshedSec] = useState(0);
   const [isRefreshingGas, setIsRefreshingGas] = useState(false);
   const [gasVariance, setGasVariance] = useState(1.0);
+
+  // Transfer Mode: On-Chain Wallet Send vs Bank Account Off-Ramp Withdrawal
+  const [transferMode, setTransferMode] = useState<'CRYPTO' | 'BANK_WITHDRAWAL'>('CRYPTO');
+
+  // Destination Bank Account Details
+  const [bankName, setBankName] = useState(authState.user?.bankAccount?.bankName || 'JPMorgan Chase');
+  const [bankAccountName, setBankAccountName] = useState(
+    authState.user?.bankAccount?.accountName || authState.user?.fullName || authState.user?.username || 'Johnathan Vance'
+  );
+  const [bankAccountNumber, setBankAccountNumber] = useState(authState.user?.bankAccount?.accountNumber || '1029384756');
+  const [bankRoutingNumber, setBankRoutingNumber] = useState(authState.user?.bankAccount?.routingNumber || '021000021');
+
+  // Keep Bank Details in Sync with user profile
+  useEffect(() => {
+    if (authState.user?.bankAccount) {
+      setBankName(authState.user.bankAccount.bankName || 'JPMorgan Chase');
+      setBankAccountName(
+        authState.user.bankAccount.accountName || authState.user.fullName || authState.user.username
+      );
+      setBankAccountNumber(authState.user.bankAccount.accountNumber || '1029384756');
+      setBankRoutingNumber(authState.user.bankAccount.routingNumber || '021000021');
+    }
+  }, [authState.user, isOpen]);
 
   // Transaction execution state
   const [status, setStatus] = useState<'IDLE' | 'PREPARING' | 'WAITING_SIGNATURE' | 'BROADCASTING' | 'CONFIRMED' | 'FAILED'>('IDLE');
@@ -152,20 +180,35 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
   const handleProceedToSecurity = () => {
     if (!authState.isAuthenticated) {
-      setErrorMessage('🔒 Authentication Required: You must be signed in to execute Web3 transfers.');
+      setErrorMessage('🔒 Authentication Required: You must be signed in to execute transfers or withdrawals.');
       onOpenAuthModal();
       return;
     }
 
-    if (!recipient || numericAmount <= 0) {
-      setErrorMessage('Please provide a valid recipient address and amount.');
+    if (numericAmount <= 0) {
+      setErrorMessage('Please enter a valid amount.');
       return;
     }
 
-    const validation = validateAddressForChain(selectedChain, recipient);
-    if (!validation.isValid) {
-      setErrorMessage(`Invalid address for ${selectedChain}: ${validation.reason}`);
-      return;
+    if (transferMode === 'CRYPTO') {
+      if (!recipient) {
+        setErrorMessage('Please provide a valid recipient address.');
+        return;
+      }
+
+      const validation = validateAddressForChain(selectedChain, recipient);
+      if (!validation.isValid) {
+        setErrorMessage(`Invalid address for ${selectedChain}: ${validation.reason}`);
+        return;
+      }
+    } else {
+      // Bank Withdrawal Validation
+      if (!bankName.trim() || !bankAccountNumber.trim()) {
+        setErrorMessage('Please specify a valid Bank Name and Account / IBAN Number.');
+        return;
+      }
+      const maskedAcct = bankAccountNumber.trim().length > 4 ? bankAccountNumber.trim().slice(-4) : bankAccountNumber.trim();
+      setRecipient(`Bank Wire: ${bankName.trim()} (****${maskedAcct}) - ${bankAccountName.trim() || 'Legal Name'}`);
     }
 
     if (numericAmount > tokenBalance && tokenBalance > 0) {
@@ -291,103 +334,237 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         {status === 'IDLE' && authStep === 'FORM' && (
           <div className="space-y-3.5 text-xs">
             
-            {/* Sender Source & Target Chain Selection */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">From Account</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs block truncate">
-                  {wallet.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : 'Not Connected'}
-                </span>
-                <span className="text-[10px] text-indigo-500 font-semibold">{wallet.walletType}</span>
-              </div>
+            {/* Transfer Mode Switcher */}
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferMode('CRYPTO');
+                  setErrorMessage('');
+                }}
+                className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  transferMode === 'CRYPTO'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Crypto Wallet Send</span>
+              </button>
 
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                <label className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Network Rail</label>
-                <select
-                  value={selectedChain}
-                  onChange={(e) => setSelectedChain(e.target.value as SupportedChain)}
-                  className="w-full bg-transparent font-bold text-slate-900 dark:text-white text-xs focus:outline-none cursor-pointer"
-                >
-                  <option value="Ethereum">Ethereum Mainnet</option>
-                  <option value="Polygon">Polygon POS</option>
-                  <option value="Base">Base L2</option>
-                  <option value="Arbitrum">Arbitrum One</option>
-                  <option value="Optimism">Optimism</option>
-                  <option value="Solana">Solana Network</option>
-                  <option value="BNB Chain">BNB Chain (BSC)</option>
-                  <option value="Avalanche">Avalanche C-Chain</option>
-                  <option value="Tron">Tron Network</option>
-                  <option value="Bitcoin Network">Bitcoin Network</option>
-                  <option value="Stellar Network">Stellar Network (XLM)</option>
-                </select>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferMode('BANK_WITHDRAWAL');
+                  setErrorMessage('');
+                }}
+                className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  transferMode === 'BANK_WITHDRAWAL'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                <Landmark className="w-3.5 h-3.5" />
+                <span>Withdraw to Bank</span>
+              </button>
             </div>
 
-            {/* Recipient Address Input */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-slate-700 dark:text-slate-300 font-semibold">
-                  Recipient Address / ENS / Domain
-                </label>
-                {recipient.trim() && (
-                  <span className={`text-[10px] font-semibold flex items-center gap-1 ${
-                    validateAddressForChain(selectedChain, recipient).isValid 
-                      ? 'text-emerald-500 dark:text-emerald-400' 
-                      : 'text-amber-500'
-                  }`}>
-                    {validateAddressForChain(selectedChain, recipient).isValid ? (
-                      <>
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>Valid {validateAddressForChain(selectedChain, recipient).isDomain ? 'Domain' : selectedChain} Address</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="w-3 h-3" />
-                        <span>{validateAddressForChain(selectedChain, recipient).reason}</span>
-                      </>
+            {transferMode === 'CRYPTO' ? (
+              <>
+                {/* Sender Source & Target Chain Selection */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">From Account</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs block truncate">
+                      {wallet.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : 'Not Connected'}
+                    </span>
+                    <span className="text-[10px] text-indigo-500 font-semibold">{wallet.walletType}</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <label className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Network Rail</label>
+                    <select
+                      value={selectedChain}
+                      onChange={(e) => setSelectedChain(e.target.value as SupportedChain)}
+                      className="w-full bg-transparent font-bold text-slate-900 dark:text-white text-xs focus:outline-none cursor-pointer"
+                    >
+                      <option value="Ethereum">Ethereum Mainnet</option>
+                      <option value="Polygon">Polygon POS</option>
+                      <option value="Base">Base L2</option>
+                      <option value="Arbitrum">Arbitrum One</option>
+                      <option value="Optimism">Optimism</option>
+                      <option value="Solana">Solana Network</option>
+                      <option value="BNB Chain">BNB Chain (BSC)</option>
+                      <option value="Avalanche">Avalanche C-Chain</option>
+                      <option value="Tron">Tron Network</option>
+                      <option value="Bitcoin Network">Bitcoin Network</option>
+                      <option value="Stellar Network">Stellar Network (XLM)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Recipient Address Input */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold">
+                      Recipient Address / ENS / Domain
+                    </label>
+                    {recipient.trim() && (
+                      <span className={`text-[10px] font-semibold flex items-center gap-1 ${
+                        validateAddressForChain(selectedChain, recipient).isValid 
+                          ? 'text-emerald-500 dark:text-emerald-400' 
+                          : 'text-amber-500'
+                      }`}>
+                        {validateAddressForChain(selectedChain, recipient).isValid ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Valid {validateAddressForChain(selectedChain, recipient).isDomain ? 'Domain' : selectedChain} Address</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-3 h-3" />
+                            <span>{validateAddressForChain(selectedChain, recipient).reason}</span>
+                          </>
+                        )}
+                      </span>
                     )}
+                  </div>
+                  <input
+                    type="text"
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    placeholder={selectedChain === 'Solana' ? '7xKXtg... (Solana Address)' : selectedChain === 'Bitcoin Network' ? 'bc1q... (Bitcoin Address)' : selectedChain === 'Stellar Network' ? 'G... (Stellar Public Key)' : selectedChain === 'Tron' ? 'T... (Tron Address)' : '0x71C... or recipient.eth'}
+                    className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  
+                  {/* Quick Sample Fill Options */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px]">
+                    <span className="text-slate-400 font-medium">Quick Fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => setRecipient(getChainAddress(selectedChain))}
+                      className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-semibold border border-indigo-200 dark:border-indigo-800 transition-all active:scale-95 flex items-center gap-1"
+                    >
+                      <Sparkles className="w-2.5 h-2.5 text-indigo-400" />
+                      <span>Valid {selectedChain} Sample</span>
+                    </button>
+                    {['Ethereum', 'Polygon', 'Base', 'Arbitrum', 'Optimism'].includes(selectedChain) && (
+                      <button
+                        type="button"
+                        onClick={() => setRecipient('treasury.eth')}
+                        className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
+                      >
+                        treasury.eth
+                      </button>
+                    )}
+                    {selectedChain === 'Solana' && (
+                      <button
+                        type="button"
+                        onClick={() => setRecipient('treasury.sol')}
+                        className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
+                      >
+                        treasury.sol
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Bank Account Destination Details */
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5">
+                  <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Landmark className="w-4 h-4 text-emerald-500" />
+                    Destination Bank Account
                   </span>
+                  <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    FedNow / ACH / Wire Instant
+                  </span>
+                </div>
+
+                {authState.user?.bankAccount ? (
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-bold text-emerald-300 block text-[11px]">{bankName}</span>
+                      <span className="text-[10px] text-slate-300 font-mono">
+                        Acc: ****{bankAccountNumber.slice(-4)} • {bankAccountName}
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Linked
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-amber-500 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 flex items-center justify-between">
+                    <span>No bank account linked in profile. Enter details below:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenAuthModal();
+                      }}
+                      className="underline font-bold text-amber-400 hover:text-amber-300 text-[10px] shrink-0"
+                    >
+                      Link in Profile
+                    </button>
+                  </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="e.g. Chase / Barclays"
+                      className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 focus:outline-none text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">
+                      Account Holder Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankAccountName}
+                      onChange={(e) => setBankAccountName(e.target.value)}
+                      placeholder="Legal Account Name"
+                      className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 focus:outline-none text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">
+                      Account Number / IBAN
+                    </label>
+                    <input
+                      type="text"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      placeholder="1029384756 or IBAN"
+                      className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 focus:outline-none text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">
+                      Routing / SWIFT Code
+                    </label>
+                    <input
+                      type="text"
+                      value={bankRoutingNumber}
+                      onChange={(e) => setBankRoutingNumber(e.target.value)}
+                      placeholder="021000021"
+                      className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 focus:outline-none text-xs font-mono"
+                    />
+                  </div>
+                </div>
               </div>
-              <input
-                type="text"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                placeholder={selectedChain === 'Solana' ? '7xKXtg... (Solana Address)' : selectedChain === 'Bitcoin Network' ? 'bc1q... (Bitcoin Address)' : selectedChain === 'Stellar Network' ? 'G... (Stellar Public Key)' : selectedChain === 'Tron' ? 'T... (Tron Address)' : '0x71C... or recipient.eth'}
-                className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              
-              {/* Quick Sample Fill Options */}
-              <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px]">
-                <span className="text-slate-400 font-medium">Quick Fill:</span>
-                <button
-                  type="button"
-                  onClick={() => setRecipient(getChainAddress(selectedChain))}
-                  className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-semibold border border-indigo-200 dark:border-indigo-800 transition-all active:scale-95 flex items-center gap-1"
-                >
-                  <Sparkles className="w-2.5 h-2.5 text-indigo-400" />
-                  <span>Valid {selectedChain} Sample</span>
-                </button>
-                {['Ethereum', 'Polygon', 'Base', 'Arbitrum', 'Optimism'].includes(selectedChain) && (
-                  <button
-                    type="button"
-                    onClick={() => setRecipient('treasury.eth')}
-                    className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
-                  >
-                    treasury.eth
-                  </button>
-                )}
-                {selectedChain === 'Solana' && (
-                  <button
-                    type="button"
-                    onClick={() => setRecipient('treasury.sol')}
-                    className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
-                  >
-                    treasury.sol
-                  </button>
-                )}
-              </div>
-            </div>
+            )}
 
             {/* Token & Amount Selection (Supports ALL Coins) */}
             <div className="grid grid-cols-12 gap-2">
@@ -531,10 +708,16 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             {/* Action button: Proceed to Security Verification */}
             <button
               onClick={handleProceedToSecurity}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+              className={`w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 ${
+                transferMode === 'BANK_WITHDRAWAL'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-500/20'
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/20'
+              }`}
             >
               <Lock className="w-4 h-4 text-emerald-300" />
-              <span>Authorize Transfer ({numericAmount} {selectedToken})</span>
+              <span>
+                {transferMode === 'BANK_WITHDRAWAL' ? 'Authorize Bank Withdrawal' : 'Authorize Transfer'} ({numericAmount} {selectedToken})
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
