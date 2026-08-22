@@ -125,7 +125,7 @@ export const FacialRecognitionStep: React.FC<FacialRecognitionStepProps> = ({
         }
       }
     } else {
-      // Fallback for sandboxed preview environments without camera hardware
+      // Fallback for browser preview environments without camera hardware
       isValidFace = true;
       capturedUrl = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="300" height="300" fill="%230f172a"/><circle cx="150" cy="120" r="55" fill="%2338bdf8" opacity="0.85"/><ellipse cx="150" cy="230" rx="80" ry="50" fill="%2338bdf8" opacity="0.85"/><circle cx="150" cy="150" r="125" stroke="%2310b981" stroke-width="4" fill="none" stroke-dasharray="10 5"/><text x="150" y="280" font-family="sans-serif" font-size="12" fill="%2310b981" text-anchor="middle" font-weight="bold">VERIFIED BIOMETRIC ID</text></svg>`;
     }

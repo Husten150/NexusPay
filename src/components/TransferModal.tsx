@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { WalletState, SupportedChain, TransactionAuditLog, AuthState } from '../types';
 import { ALL_COINS, getCoinInfo, convertCoinToUsd, getCoinsForChain } from '../data/coinCatalog';
-import { validateAddressForChain, CHAIN_ADDRESS_MAP, getChainAddress } from '../utils/chainAddress';
+import { validateAddressForChain, CHAIN_ADDRESS_MAP, getChainAddress, extractAddressAndParamsFromQr } from '../utils/chainAddress';
+import { QrScannerModal } from './QrScannerModal';
 import { 
   Send, 
   ArrowRight, 
@@ -25,7 +26,9 @@ import {
   CreditCard,
   ArrowDownRight,
   Banknote,
-  KeyRound
+  KeyRound,
+  Scan,
+  QrCode
 } from 'lucide-react';
 
 interface TransferModalProps {
@@ -89,6 +92,22 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   );
   const [bankAccountNumber, setBankAccountNumber] = useState(authState.user?.bankAccount?.accountNumber || '1029384756');
   const [bankRoutingNumber, setBankRoutingNumber] = useState(authState.user?.bankAccount?.routingNumber || '021000021');
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+
+  const handleRecipientChange = (text: string) => {
+    const parsed = extractAddressAndParamsFromQr(text);
+    setRecipient(parsed.cleanAddress);
+    if (parsed.amount && parsed.amount > 0) setAmount(parsed.amount.toString());
+    if (parsed.token) setSelectedToken(parsed.token);
+    if (parsed.detectedChain) setSelectedChain(parsed.detectedChain);
+  };
+
+  const handleScanSuccess = (data: { address: string; amount?: number; token?: string; detectedChain?: SupportedChain }) => {
+    setRecipient(data.address);
+    if (data.amount && data.amount > 0) setAmount(data.amount.toString());
+    if (data.token) setSelectedToken(data.token);
+    if (data.detectedChain) setSelectedChain(data.detectedChain);
+  };
 
   // Keep Bank Details in Sync with user profile
   useEffect(() => {
@@ -438,20 +457,31 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                       </span>
                     )}
                   </div>
-                  <input
-                    type="text"
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    placeholder={selectedChain === 'Solana' ? '7xKXtg... (Solana Address)' : selectedChain === 'Bitcoin Network' ? 'bc1q... (Bitcoin Address)' : selectedChain === 'Stellar Network' ? 'G... (Stellar Public Key)' : selectedChain === 'Tron' ? 'T... (Tron Address)' : '0x71C... or recipient.eth'}
-                    className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={recipient}
+                      onChange={(e) => handleRecipientChange(e.target.value)}
+                      placeholder={selectedChain === 'Solana' ? '7xKXtg... (Solana Address)' : selectedChain === 'Bitcoin Network' ? 'bc1q... (Bitcoin Address)' : selectedChain === 'Stellar Network' ? 'G... (Stellar Public Key)' : selectedChain === 'Tron' ? 'T... (Tron Address)' : '0x71C... or recipient.eth'}
+                      className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs rounded-xl pl-3.5 pr-24 py-2.5 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsQrScannerOpen(true)}
+                      className="absolute right-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[11px] shadow-xs transition-all flex items-center gap-1 active:scale-95"
+                      title="Scan QR Code via Camera or Image"
+                    >
+                      <Scan className="w-3 h-3" />
+                      <span>Scan QR</span>
+                    </button>
+                  </div>
                   
                   {/* Quick Sample Fill Options */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px]">
                     <span className="text-slate-400 font-medium">Quick Fill:</span>
                     <button
                       type="button"
-                      onClick={() => setRecipient(getChainAddress(selectedChain))}
+                      onClick={() => handleRecipientChange(getChainAddress(selectedChain))}
                       className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-semibold border border-indigo-200 dark:border-indigo-800 transition-all active:scale-95 flex items-center gap-1"
                     >
                       <Sparkles className="w-2.5 h-2.5 text-indigo-400" />
@@ -460,7 +490,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                     {['Ethereum', 'Polygon', 'Base', 'Arbitrum', 'Optimism'].includes(selectedChain) && (
                       <button
                         type="button"
-                        onClick={() => setRecipient('treasury.eth')}
+                        onClick={() => handleRecipientChange('treasury.eth')}
                         className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
                       >
                         treasury.eth
@@ -469,7 +499,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                     {selectedChain === 'Solana' && (
                       <button
                         type="button"
-                        onClick={() => setRecipient('treasury.sol')}
+                        onClick={() => handleRecipientChange('treasury.sol')}
                         className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-600 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
                       >
                         treasury.sol
@@ -956,6 +986,14 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         )}
 
       </div>
+
+      {/* Embedded Live QR Code Camera and Image Scanner Modal */}
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+        activeChain={selectedChain}
+      />
     </div>
   );
 };

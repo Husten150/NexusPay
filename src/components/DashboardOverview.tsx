@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { WalletState, PaymentStream, MerchantInvoice, TransactionAuditLog, YieldPosition } from '../types';
+import { WalletState, PaymentStream, MerchantInvoice, TransactionAuditLog, YieldPosition, AuthState } from '../types';
 import { getCoinInfo, ALL_COINS } from '../data/coinCatalog';
 import { LiveTradingGraph } from './LiveTradingGraph';
+import { TransactionHistory } from './TransactionHistory';
 import { 
   TrendingUp, 
   Wallet, 
@@ -18,11 +19,15 @@ import {
   PiggyBank,
   CheckCircle2,
   AlertCircle,
-  Search
+  Search,
+  RefreshCw,
+  CreditCard,
+  Copy,
+  Check,
+  QrCode,
+  Sparkles
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-
-import { AuthState } from '../types';
 
 interface DashboardOverviewProps {
   wallet: WalletState;
@@ -34,6 +39,11 @@ interface DashboardOverviewProps {
   authState?: AuthState;
   onOpenAuthModal?: () => void;
   onOpenWalletModal?: () => void;
+  onOpenTransferModal?: () => void;
+  onOpenReceiveModal?: () => void;
+  onOpenSwapModal?: () => void;
+  onOpenBuyModal?: () => void;
+  onFinalizePending?: (txId: string) => void;
 }
 
 const TREASURY_CHART_DATA = [
@@ -55,28 +65,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   authState,
   onOpenAuthModal,
   onOpenWalletModal,
+  onOpenTransferModal,
+  onOpenReceiveModal,
+  onOpenSwapModal,
+  onOpenBuyModal,
+  onFinalizePending,
 }) => {
   const [coinSearch, setCoinSearch] = useState('');
+  const [copiedAddress, setCopiedAddress] = useState(false);
 
   const isLoggedIn = Boolean(authState?.isAuthenticated && authState.user);
 
-  // Filter or aggregate data depending on whether user is logged in
-  const displayedAuditLogs = isLoggedIn
-    ? auditLogs.filter((log) => {
-        const u = authState?.user;
-        if (!u) return true;
-        return (
-          log.summary.toLowerCase().includes(u.username.toLowerCase()) ||
-          log.summary.toLowerCase().includes(u.email.toLowerCase()) ||
-          (u.walletAddress && log.txHash.toLowerCase().includes(u.walletAddress.toLowerCase().slice(2, 8)))
-        );
-      })
-    : auditLogs;
-
-  // Use personal user metrics when logged in vs aggregate protocol metrics when logged out
-  const displayedTreasuryBalance = isLoggedIn
-    ? wallet.balanceUsd
-    : 184520 + auditLogs.reduce((acc, curr) => acc + (curr.status === 'CONFIRMED' ? curr.amountUsd : 0), 0);
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(wallet.address);
+    setCopiedAddress(true);
+    setTimeout(() => setCopiedAddress(false), 2000);
+  };
 
   const activeStreams = streams.filter((s) => s.status === 'ACTIVE');
   const monthlyOutflow = activeStreams.reduce((acc, curr) => acc + curr.amount, 0);
@@ -89,54 +93,111 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   return (
     <div className="space-y-6">
       
-      {/* Guest Welcome Homepage Banner when not signed in */}
-      {!authState?.isAuthenticated && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-xl space-y-4 relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>NexusPay Enterprise Web3 Financial Protocol</span>
+      {/* Interactive Wallet Balance & Primary Command Banner */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-xl space-y-6 relative overflow-hidden">
+        <div className="absolute -top-16 -right-16 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-80 h-80 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          
+          {/* Wallet Balance Display */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>{wallet.chain} Connected</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                Multi-Chain Treasury, Payroll & Global Settlement
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Seamlessly manage enterprise web3 balances across Polygon, Solana, Bitcoin, Stellar, Tron, and EVM networks. Stream real-time payroll, issue crypto invoices, and earn automated yield.
-              </p>
+              <div className="flex items-center gap-1.5 font-mono text-xs px-3 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700">
+                <span>{wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}</span>
+                <button 
+                  onClick={handleCopyAddress}
+                  className="text-slate-400 hover:text-white transition-colors"
+                  title="Copy Wallet Address"
+                >
+                  {copiedAddress ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
-              {onOpenAuthModal && (
-                <button
-                  onClick={onOpenAuthModal}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all active:scale-95"
-                >
-                  Sign In / Register
-                </button>
-              )}
-              {onOpenWalletModal && (
-                <button
-                  onClick={onOpenWalletModal}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs shadow-md transition-all active:scale-95"
-                >
-                  Connect Web3 Wallet
-                </button>
-              )}
+            <div>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                Total Wallet Balance
+              </span>
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white flex items-baseline gap-2 mt-1">
+                <span>${wallet.balanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-sm sm:text-base font-semibold text-emerald-400 flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  +4.85% (24h)
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                Multi-chain treasury holding {Object.keys(wallet.tokenBalances).length} assets across Polygon, Base, Solana, Stellar, Ethereum & Bitcoin.
+              </p>
             </div>
           </div>
+
+          {/* Quick Wallet Action Buttons: Send, Receive, Swap, Buy Crypto */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 lg:w-auto w-full">
+            {onOpenTransferModal && (
+              <button
+                onClick={onOpenTransferModal}
+                className="flex flex-col items-center justify-center p-3 sm:px-4 sm:py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all active:scale-95 group"
+              >
+                <div className="p-2 rounded-xl bg-white/20 mb-1.5 group-hover:scale-110 transition-transform">
+                  <ArrowUpRight className="w-4 h-4" />
+                </div>
+                <span>Send Transfer</span>
+              </button>
+            )}
+
+            {onOpenReceiveModal && (
+              <button
+                onClick={onOpenReceiveModal}
+                className="flex flex-col items-center justify-center p-3 sm:px-4 sm:py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all active:scale-95 group"
+              >
+                <div className="p-2 rounded-xl bg-white/20 mb-1.5 group-hover:scale-110 transition-transform">
+                  <ArrowDownLeft className="w-4 h-4" />
+                </div>
+                <span>Receive</span>
+              </button>
+            )}
+
+            {onOpenSwapModal && (
+              <button
+                onClick={onOpenSwapModal}
+                className="flex flex-col items-center justify-center p-3 sm:px-4 sm:py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all active:scale-95 group"
+              >
+                <div className="p-2 rounded-xl bg-white/20 mb-1.5 group-hover:scale-110 transition-transform">
+                  <RefreshCw className="w-4 h-4" />
+                </div>
+                <span>Swap Tokens</span>
+              </button>
+            )}
+
+            {onOpenBuyModal && (
+              <button
+                onClick={onOpenBuyModal}
+                className="flex flex-col items-center justify-center p-3 sm:px-4 sm:py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/30 transition-all active:scale-95 group"
+              >
+                <div className="p-2 rounded-xl bg-slate-950/20 mb-1.5 group-hover:scale-110 transition-transform">
+                  <CreditCard className="w-4 h-4 text-slate-950" />
+                </div>
+                <span>Buy Crypto</span>
+              </button>
+            )}
+          </div>
+
         </div>
-      )}
+      </div>
       
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Treasury Balance */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
+        {/* Treasury Balance Metric */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              {isLoggedIn ? `${authState?.user?.username}'s Account Treasury` : 'Global Treasury (All Project Users)'}
+              {isLoggedIn ? `${authState?.user?.username}'s Balance` : 'Treasury Reserve'}
             </span>
             <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
               <Wallet className="w-4 h-4" />
@@ -144,11 +205,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              ${displayedTreasuryBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${wallet.balanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
               <TrendingUp className="w-3.5 h-3.5" />
-              {isLoggedIn ? 'Personal Wallet & Linked Accounts' : 'Complete Platform Multi-User Aggregate'}
+              Verified On-Chain State
             </div>
           </div>
         </div>
@@ -159,8 +220,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Active Stream Outflow
             </span>
-            <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
-              <ArrowUpRight className="w-4 h-4" />
+            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <Zap className="w-4 h-4" />
             </div>
           </div>
           <div>
@@ -168,12 +229,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               ${monthlyOutflow.toLocaleString()}/mo
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {activeStreams.length} active automated streams
+              {activeStreams.length} streaming contracts live
             </div>
           </div>
         </div>
 
-        {/* Pending Invoice Inflow */}
+        {/* Pending Inflow */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -219,15 +280,33 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-amber-400" />
-          <span className="text-sm font-bold">Quick Web3 Operations:</span>
+          <span className="text-sm font-bold">Quick Operations:</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onOpenSwapModal && (
+            <button
+              onClick={onOpenSwapModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition-all shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Swap Coins</span>
+            </button>
+          )}
+          {onOpenBuyModal && (
+            <button
+              onClick={onOpenBuyModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white transition-all shadow-xs"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Buy Crypto</span>
+            </button>
+          )}
           <button
             onClick={() => onNavigateTab('streams')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-all"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            <span>Create Stream</span>
+            <span>Payroll Stream</span>
           </button>
           <button
             onClick={() => onNavigateTab('invoices')}
@@ -351,59 +430,18 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
       </div>
 
-      {/* Transaction & AI Audit Activity Feed */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              Recent On-Chain Activity & Safety Audits
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Live transaction logs audited by automated protocol safeguards
-            </p>
-          </div>
-        </div>
-
-        <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-          {(displayedAuditLogs.length > 0 ? displayedAuditLogs : auditLogs).map((log) => (
-            <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  log.status === 'CONFIRMED' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
-                }`}>
-                  {log.status === 'CONFIRMED' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 dark:text-white">{log.summary}</div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                    <span>{log.timestamp}</span>
-                    <span>•</span>
-                    <span className="font-mono">{log.txHash}</span>
-                    <span>•</span>
-                    <span>{log.chain}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-right">
-                <div>
-                  <span className="font-bold text-slate-900 dark:text-white block">
-                    {log.amountUsd > 0 ? `$${log.amountUsd.toLocaleString()}` : 'Audit Block'}
-                  </span>
-                  <span className="text-[10px] text-slate-400">Gas: ${log.gasFeeUsd.toFixed(4)}</span>
-                </div>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                  log.aiRiskLevel === 'SAFE' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300' : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
-                }`}>
-                  {log.aiRiskLevel}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Complete Interactive Transaction History with Sent, Received, and Pending */}
+      <TransactionHistory 
+        transactions={auditLogs}
+        activeChain={wallet.chain}
+        onFinalizePending={onFinalizePending}
+        onOpenTransfer={onOpenTransferModal}
+        onOpenReceive={onOpenReceiveModal}
+        onOpenSwap={onOpenSwapModal}
+        onOpenBuy={onOpenBuyModal}
+      />
 
     </div>
   );
 };
+

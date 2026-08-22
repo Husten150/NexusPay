@@ -21,7 +21,7 @@ import {
   loadSavedState, 
   saveState 
 } from './data/mockWeb3State';
-import { getCoinInfo } from './data/coinCatalog';
+import { getCoinInfo, calculateTotalWalletUsd } from './data/coinCatalog';
 
 import { Navbar } from './components/Navbar';
 import { AgentCommandCenter } from './components/AgentCommandCenter';
@@ -34,6 +34,8 @@ import { SecurityContractAuditor } from './components/SecurityContractAuditor';
 import { WalletModal } from './components/WalletModal';
 import { TransferModal } from './components/TransferModal';
 import { ReceiveModal } from './components/ReceiveModal';
+import { SwapModal } from './components/SwapModal';
+import { BuyCryptoModal } from './components/BuyCryptoModal';
 import { SubmissionHubModal } from './components/SubmissionHubModal';
 import { AuthModal } from './components/AuthModal';
 import { PwaInstallModal } from './components/PwaInstallModal';
@@ -66,6 +68,8 @@ export default function App() {
     setShowWalletModal(false);
     setShowTransferModal(false);
     setShowReceiveModal(false);
+    setShowSwapModal(false);
+    setShowBuyCryptoModal(false);
     setShowSubmissionHubModal(false);
     setShowAuthModal(false);
     setShowPwaModal(false);
@@ -101,6 +105,20 @@ export default function App() {
     setShowReceiveModal(true);
   };
 
+  const handleOpenSwapModal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'swap', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=swap`);
+    }
+    setShowSwapModal(true);
+  };
+
+  const handleOpenBuyModal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'buy', tab: activeTab }, '', `${window.location.pathname}?tab=${activeTab}&modal=buy`);
+    }
+    setShowBuyCryptoModal(true);
+  };
+
   const handleOpenAuthModal = (reason?: string) => {
     setAuthReason(reason);
     if (typeof window !== 'undefined') {
@@ -116,7 +134,7 @@ export default function App() {
     setShowPwaModal(true);
   };
 
-  const handleCloseModal = (modalName: 'auth' | 'wallet' | 'transfer' | 'receive' | 'submission' | 'pwa') => {
+  const handleCloseModal = (modalName: 'auth' | 'wallet' | 'transfer' | 'receive' | 'swap' | 'buy' | 'submission' | 'pwa') => {
     if (modalName === 'auth') {
       setShowAuthModal(false);
       setAuthReason(undefined);
@@ -126,6 +144,10 @@ export default function App() {
       setShowTransferModal(false);
     } else if (modalName === 'receive') {
       setShowReceiveModal(false);
+    } else if (modalName === 'swap') {
+      setShowSwapModal(false);
+    } else if (modalName === 'buy') {
+      setShowBuyCryptoModal(false);
     } else if (modalName === 'submission') {
       setShowSubmissionHubModal(false);
     } else if (modalName === 'pwa') {
@@ -163,6 +185,8 @@ export default function App() {
         setShowWalletModal(state.modal === 'wallet');
         setShowTransferModal(state.modal === 'transfer');
         setShowReceiveModal(state.modal === 'receive');
+        setShowSwapModal(state.modal === 'swap');
+        setShowBuyCryptoModal(state.modal === 'buy');
         setShowAuthModal(state.modal === 'auth');
         setShowSubmissionHubModal(state.modal === 'submission');
         setShowPwaModal(state.modal === 'pwa');
@@ -180,6 +204,8 @@ export default function App() {
         setShowWalletModal(modalFromUrl === 'wallet');
         setShowTransferModal(modalFromUrl === 'transfer');
         setShowReceiveModal(modalFromUrl === 'receive');
+        setShowSwapModal(modalFromUrl === 'swap');
+        setShowBuyCryptoModal(modalFromUrl === 'buy');
         setShowAuthModal(modalFromUrl === 'auth');
         setShowSubmissionHubModal(modalFromUrl === 'submission');
         setShowPwaModal(modalFromUrl === 'pwa');
@@ -206,6 +232,8 @@ export default function App() {
   const [showWalletModal, setShowWalletModal] = useState(() => getInitialModalState('wallet'));
   const [showTransferModal, setShowTransferModal] = useState(() => getInitialModalState('transfer'));
   const [showReceiveModal, setShowReceiveModal] = useState(() => getInitialModalState('receive'));
+  const [showSwapModal, setShowSwapModal] = useState(() => getInitialModalState('swap'));
+  const [showBuyCryptoModal, setShowBuyCryptoModal] = useState(() => getInitialModalState('buy'));
   const [showSubmissionHubModal, setShowSubmissionHubModal] = useState(() => getInitialModalState('submission'));
   const [showAuthModal, setShowAuthModal] = useState(() => getInitialModalState('auth', false));
   const [showPwaModal, setShowPwaModal] = useState(() => getInitialModalState('pwa'));
@@ -472,7 +500,11 @@ export default function App() {
     }
 
     if (!addressToSet) {
-      addressToSet = type === 'Phantom' ? '5FHneW46xGXtfC69XpX2xR1...' : type === 'Stellar Wallet (Freighter)' ? 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGUQ2EWKWF4X36S5L33X' : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+      addressToSet = type === 'Phantom' 
+        ? '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' 
+        : type === 'Stellar Wallet (Freighter)' 
+        ? 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGUQ2EWKWF4X36S5L33X' 
+        : '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
     }
 
     setWallet((prev) => ({
@@ -518,18 +550,6 @@ export default function App() {
     showToast('Disconnected wallet & cleared active session.');
   };
 
-  const handleTopUpFaucet = () => {
-    setWallet((prev) => ({
-      ...prev,
-      balanceUsd: prev.balanceUsd + 10000,
-      tokenBalances: {
-        ...prev.tokenBalances,
-        USDC: prev.tokenBalances.USDC + 10000,
-      },
-    }));
-    showToast('Deposited +10,000 USDC into live wallet balance!');
-  };
-
   // Transfer execution handler
   const handleCompleteTransfer = (amount: number, token: string, recipient: string, txHash: string) => {
     if (!authState.isAuthenticated) {
@@ -543,22 +563,30 @@ export default function App() {
     const usdEquivalent = amount * coinInfo.priceUsd;
     const user = authState.user;
 
-    setWallet((prev) => ({
-      ...prev,
-      balanceUsd: Math.max(0, prev.balanceUsd - usdEquivalent),
-      tokenBalances: {
+    setWallet((prev) => {
+      const updatedTokens = {
         ...prev.tokenBalances,
         [token]: Math.max(0, (prev.tokenBalances[token] || 0) - amount),
-      },
-    }));
+      };
+      return {
+        ...prev,
+        tokenBalances: updatedTokens,
+        balanceUsd: calculateTotalWalletUsd(updatedTokens),
+      };
+    });
 
     const newLog: TransactionAuditLog = {
       id: `log-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
       txHash,
       type: 'REMITTANCE',
+      category: 'SENT',
       summary: `[Account: ${user?.username}] Sent ${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) to ${recipient}`,
       amountUsd: usdEquivalent,
+      token,
+      cryptoAmount: amount,
+      senderAddress: wallet.address,
+      recipientAddress: recipient,
       chain: wallet.chain,
       status: 'CONFIRMED',
       gasFeeUsd: 0.008,
@@ -582,22 +610,30 @@ export default function App() {
     const usdEquivalent = amount * coinInfo.priceUsd;
     const user = authState.user;
 
-    setWallet((prev) => ({
-      ...prev,
-      balanceUsd: prev.balanceUsd + usdEquivalent,
-      tokenBalances: {
+    setWallet((prev) => {
+      const updatedTokens = {
         ...prev.tokenBalances,
         [token]: (prev.tokenBalances[token] || 0) + amount,
-      },
-    }));
+      };
+      return {
+        ...prev,
+        tokenBalances: updatedTokens,
+        balanceUsd: calculateTotalWalletUsd(updatedTokens),
+      };
+    });
 
     const newLog: TransactionAuditLog = {
       id: `log-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
       txHash: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
       type: 'INVOICE_PAYMENT',
+      category: 'RECEIVED',
       summary: `[Account: ${user?.username}] Received +${amount} ${token} (~$${usdEquivalent.toFixed(2)} USD) from ${sender}`,
       amountUsd: usdEquivalent,
+      token,
+      cryptoAmount: amount,
+      senderAddress: sender,
+      recipientAddress: wallet.address,
       chain: wallet.chain,
       status: 'CONFIRMED',
       gasFeeUsd: 0.004,
@@ -606,6 +642,114 @@ export default function App() {
 
     setAuditLogs((prev) => [newLog, ...prev]);
     showToast(`Received +${amount} ${token} into account @${user?.username}!`);
+  };
+
+  // Swap Execution Success Handler
+  const handleSwapSuccess = (swapData: {
+    fromToken: string;
+    toToken: string;
+    fromAmount: number;
+    toAmount: number;
+    txHash: string;
+    gasFeeUsd: number;
+    chain: SupportedChain;
+  }) => {
+    const fromCoin = getCoinInfo(swapData.fromToken);
+    const usdValue = swapData.fromAmount * fromCoin.priceUsd;
+
+    setWallet((prev) => {
+      const updatedTokens = {
+        ...prev.tokenBalances,
+        [swapData.fromToken]: Math.max(0, (prev.tokenBalances[swapData.fromToken] || 0) - swapData.fromAmount),
+        [swapData.toToken]: (prev.tokenBalances[swapData.toToken] || 0) + swapData.toAmount,
+      };
+      return {
+        ...prev,
+        tokenBalances: updatedTokens,
+        balanceUsd: calculateTotalWalletUsd(updatedTokens),
+      };
+    });
+
+    const newLog: TransactionAuditLog = {
+      id: `log-${Date.now().toString().slice(-4)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      txHash: swapData.txHash,
+      type: 'SWAP',
+      category: 'SWAP',
+      summary: `[Swap] Swapped ${swapData.fromAmount.toFixed(4)} ${swapData.fromToken} for ${swapData.toAmount.toFixed(4)} ${swapData.toToken}`,
+      amountUsd: usdValue,
+      token: swapData.toToken,
+      cryptoAmount: swapData.toAmount,
+      senderAddress: wallet.address,
+      recipientAddress: wallet.address,
+      chain: swapData.chain,
+      status: 'CONFIRMED',
+      gasFeeUsd: swapData.gasFeeUsd,
+      aiRiskLevel: 'SAFE',
+    };
+
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(`Swapped ${swapData.fromAmount} ${swapData.fromToken} -> ${swapData.toAmount.toFixed(4)} ${swapData.toToken}!`);
+  };
+
+  // Buy Crypto Success Handler
+  const handleBuySuccess = (buyData: {
+    fiatAmount: number;
+    fiatCurrency: string;
+    cryptoToken: string;
+    cryptoAmount: number;
+    paymentMethod: string;
+    txHash: string;
+    chain: SupportedChain;
+  }) => {
+    const coin = getCoinInfo(buyData.cryptoToken);
+    const usdValue = buyData.cryptoAmount * coin.priceUsd;
+
+    setWallet((prev) => {
+      const updatedTokens = {
+        ...prev.tokenBalances,
+        [buyData.cryptoToken]: (prev.tokenBalances[buyData.cryptoToken] || 0) + buyData.cryptoAmount,
+      };
+      return {
+        ...prev,
+        tokenBalances: updatedTokens,
+        balanceUsd: calculateTotalWalletUsd(updatedTokens),
+      };
+    });
+
+    const newLog: TransactionAuditLog = {
+      id: `log-${Date.now().toString().slice(-4)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      txHash: buyData.txHash,
+      type: 'BUY_CRYPTO',
+      category: 'BUY',
+      summary: `[On-Ramp] Purchased +${buyData.cryptoAmount.toFixed(4)} ${buyData.cryptoToken} (${buyData.fiatAmount} ${buyData.fiatCurrency} via ${buyData.paymentMethod})`,
+      amountUsd: usdValue,
+      token: buyData.cryptoToken,
+      cryptoAmount: buyData.cryptoAmount,
+      senderAddress: `Fiat On-Ramp (${buyData.paymentMethod})`,
+      recipientAddress: wallet.address,
+      chain: buyData.chain,
+      status: 'CONFIRMED',
+      gasFeeUsd: 0.002,
+      aiRiskLevel: 'SAFE',
+    };
+
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(`Bought +${buyData.cryptoAmount.toFixed(4)} ${buyData.cryptoToken} via ${buyData.paymentMethod}!`);
+  };
+
+  // Finalize Pending transaction handler (confirm pending tx)
+  const handleFinalizePending = (txId: string) => {
+    setAuditLogs((prev) =>
+      prev.map((log) => {
+        if (log.id === txId) {
+          showToast(`Transaction ${log.txHash} has been confirmed on-chain!`);
+          return { ...log, status: 'CONFIRMED' as const };
+        }
+        return log;
+      })
+    );
   };
 
   // Stream Handlers
@@ -823,12 +967,16 @@ export default function App() {
         onOpenWalletModal={handleOpenWalletModal}
         onOpenTransferModal={handleOpenTransferModal}
         onOpenReceiveModal={handleOpenReceiveModal}
+        onOpenSwapModal={handleOpenSwapModal}
+        onOpenBuyModal={handleOpenBuyModal}
         onOpenAuthModal={() => handleOpenAuthModal()}
         onOpenPwaModal={handleOpenPwaModal}
         onNavigateHome={() => {
           setShowReceiveModal(false);
           setShowTransferModal(false);
           setShowWalletModal(false);
+          setShowSwapModal(false);
+          setShowBuyCryptoModal(false);
           setShowAuthModal(false);
           setShowSubmissionHubModal(false);
           handleTabChange('overview');
@@ -947,6 +1095,11 @@ export default function App() {
               authState={authState}
               onOpenAuthModal={handleOpenAuthModal}
               onOpenWalletModal={handleOpenWalletModal}
+              onOpenTransferModal={handleOpenTransferModal}
+              onOpenReceiveModal={handleOpenReceiveModal}
+              onOpenSwapModal={handleOpenSwapModal}
+              onOpenBuyModal={handleOpenBuyModal}
+              onFinalizePending={handleFinalizePending}
             />
           )}
 
@@ -1008,7 +1161,6 @@ export default function App() {
         wallet={wallet}
         onConnectWallet={handleConnectWallet}
         onDisconnectWallet={handleDisconnectWallet}
-        onTopUpFaucet={handleTopUpFaucet}
       />
 
       {/* Real-time Transfer Money Modal */}
@@ -1027,6 +1179,22 @@ export default function App() {
         onClose={() => handleCloseModal('receive')}
         wallet={wallet}
         onReceiveFunds={handleReceiveFunds}
+      />
+
+      {/* Instant Token Swap DEX Modal */}
+      <SwapModal
+        isOpen={showSwapModal}
+        onClose={() => handleCloseModal('swap')}
+        wallet={wallet}
+        onSwapSuccess={handleSwapSuccess}
+      />
+
+      {/* Instant Fiat to Crypto On-Ramp Buy Modal */}
+      <BuyCryptoModal
+        isOpen={showBuyCryptoModal}
+        onClose={() => handleCloseModal('buy')}
+        wallet={wallet}
+        onBuySuccess={handleBuySuccess}
       />
 
       {/* Level 4 Submission Hub Modal */}

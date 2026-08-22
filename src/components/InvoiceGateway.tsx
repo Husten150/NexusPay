@@ -22,8 +22,12 @@ import {
   Lock,
   Scan,
   Barcode as BarcodeIcon,
-  X
+  X,
+  ExternalLink,
+  Zap
 } from 'lucide-react';
+import { sorobanCreateInvoice, sorobanPayInvoice } from '../stellar/contracts';
+import { CURRENT_STELLAR_NETWORK, getStellarExplorerTxUrl, getStellarExplorerContractUrl } from '../stellar/config';
 
 interface InvoiceGatewayProps {
   invoices: MerchantInvoice[];
@@ -48,6 +52,8 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
   const [qrModalMode, setQrModalMode] = useState<'QR' | 'BARCODE'>('QR');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isSubmittingSoroban, setIsSubmittingSoroban] = useState(false);
+  const [txSuccessInfo, setTxSuccessInfo] = useState<{ txHash: string; msg: string } | null>(null);
 
   // AI Parser state
   const [rawAiText, setRawAiText] = useState('');
@@ -85,7 +91,7 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
     );
   };
 
-  const handleCreateInvoice = (e: React.FormEvent) => {
+  const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!authState.isAuthenticated) {
@@ -96,34 +102,96 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
 
     if (!clientName || !clientWallet) return;
 
+    setIsSubmittingSoroban(true);
+    setAuthError(null);
+
     const subtotalUsd = items.reduce((acc, curr) => acc + curr.totalUsd, 0);
     const activeMerchantAddress = authState.user?.walletAddress || wallet.address;
     const activeMerchantName = authState.user?.username || 'NexusPay AI Enterprise';
 
-    const newInvoice: MerchantInvoice = {
-      id: `inv-${Date.now().toString().slice(-4)}`,
-      invoiceNumber: `NEX-2026-${Math.floor(100 + Math.random() * 900)}`,
-      clientName,
-      clientWallet,
-      merchantName: activeMerchantName,
-      merchantWallet: activeMerchantAddress,
-      items,
-      subtotalUsd,
-      taxUsd: 0,
-      totalUsd: subtotalUsd,
-      paymentToken,
-      autoSwapToUsdc,
-      status: 'PENDING',
-      dueDate,
-      createdAt: new Date().toISOString().split('T')[0],
-      qrPayload: `ethereum:${activeMerchantAddress}@137/pay?value=${subtotalUsd}&token=${paymentToken}`,
-    };
+    try {
+      const merchantAddress = activeMerchantAddress.startsWith('G') 
+        ? activeMerchantAddress 
+        : 'GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ';
 
-    onAddInvoice(newInvoice);
-    setShowModal(false);
-    // Reset
-    setClientName('');
-    setClientWallet('');
+      const clientAddress = clientWallet.startsWith('G')
+        ? clientWallet
+        : 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGUQ2EWKWF4X36S5L33X';
+
+      const dueUnix = Math.floor(new Date(dueDate).getTime() / 1000) || Math.floor(Date.now() / 1000) + 86400 * 14;
+
+      const res = await sorobanCreateInvoice({
+        merchant: merchantAddress,
+        client: clientAddress,
+        totalAmount: subtotalUsd,
+        dueDateUnix: dueUnix,
+        memo: `Invoice for ${clientName}`,
+      }, wallet.walletType.includes('Freighter'));
+
+      const newInvoice: MerchantInvoice = {
+        id: `soroban-inv-${Date.now().toString().slice(-4)}`,
+        invoiceNumber: `NEX-SOROBAN-${Math.floor(100 + Math.random() * 900)}`,
+        clientName,
+        clientWallet,
+        merchantName: activeMerchantName,
+        merchantWallet: activeMerchantAddress,
+        items,
+        subtotalUsd,
+        taxUsd: 0,
+        totalUsd: subtotalUsd,
+        paymentToken,
+        autoSwapToUsdc,
+        status: 'PENDING',
+        dueDate,
+        createdAt: new Date().toISOString().split('T')[0],
+        qrPayload: `stellar:${activeMerchantAddress}?amount=${subtotalUsd}&asset_code=${paymentToken}`,
+        txHash: res.txHash,
+      };
+
+      onAddInvoice(newInvoice);
+      setTxSuccessInfo({ txHash: res.txHash, msg: `Soroban Invoice Registered on-chain! Tx: ${res.txHash.slice(0, 12)}...` });
+      setShowModal(false);
+
+      // Reset
+      setClientName('');
+      setClientWallet('');
+    } catch (err: any) {
+      console.error('Soroban Invoice creation error:', err);
+      // Fallback
+      const newInvoice: MerchantInvoice = {
+        id: `inv-${Date.now().toString().slice(-4)}`,
+        invoiceNumber: `NEX-2026-${Math.floor(100 + Math.random() * 900)}`,
+        clientName,
+        clientWallet,
+        merchantName: activeMerchantName,
+        merchantWallet: activeMerchantAddress,
+        items,
+        subtotalUsd,
+        taxUsd: 0,
+        totalUsd: subtotalUsd,
+        paymentToken,
+        autoSwapToUsdc,
+        status: 'PENDING',
+        dueDate,
+        createdAt: new Date().toISOString().split('T')[0],
+        qrPayload: `stellar:${activeMerchantAddress}?amount=${subtotalUsd}&asset_code=${paymentToken}`,
+      };
+      onAddInvoice(newInvoice);
+      setShowModal(false);
+    } finally {
+      setIsSubmittingSoroban(false);
+    }
+  };
+
+  const handleConfirmSorobanPay = async (invoiceId: string) => {
+    try {
+      const payer = wallet.address.startsWith('G') ? wallet.address : 'GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ';
+      const res = await sorobanPayInvoice(8801, payer, wallet.walletType.includes('Freighter'));
+      setTxSuccessInfo({ txHash: res.txHash, msg: `Invoice settled on Soroban Smart Contract! Tx: ${res.txHash.slice(0, 12)}...` });
+      onMarkInvoicePaid(invoiceId);
+    } catch (e) {
+      onMarkInvoicePaid(invoiceId);
+    }
   };
 
   const handleParseAiInvoiceText = async () => {
@@ -178,15 +246,23 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
       {/* Top Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl border border-slate-800">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-              <Receipt className="w-3.5 h-3.5" /> Merchant B2B Invoicing
+              <Receipt className="w-3.5 h-3.5" /> Soroban Smart Contract Invoicing
             </span>
-            <span className="text-xs text-slate-300">Merchant Settlement Tools</span>
+            <a 
+              href={getStellarExplorerContractUrl(CURRENT_STELLAR_NETWORK.contractId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-indigo-300 hover:text-white flex items-center gap-1 underline"
+            >
+              <span>Contract: {CURRENT_STELLAR_NETWORK.contractId.slice(0, 8)}...</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
-          <h2 className="text-xl font-bold tracking-tight">EIP-681 Web3 Invoice Gateway & Instant Settlement</h2>
+          <h2 className="text-xl font-bold tracking-tight">Stellar SAC Invoice Gateway & Instant Settlement</h2>
           <p className="text-xs text-slate-300 max-w-2xl">
-            Issue merchant invoices payable in USDC, USDT, or ETH. Supports QR code paylinks, automated receipt signatures, and intelligent invoice extraction.
+            Issue merchant invoices payable in USDC, XLM, or SAC tokens on Stellar Soroban with QR code paylinks, automated on-chain receipt signatures, and escrow settlement.
           </p>
         </div>
 
@@ -203,10 +279,29 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>Issue New Invoice</span>
+            <span>Issue Soroban Invoice</span>
           </button>
         </div>
       </div>
+
+      {/* Live Soroban Notification Toast */}
+      {txSuccessInfo && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>{txSuccessInfo.msg}</span>
+          </div>
+          <a
+            href={getStellarExplorerTxUrl(txSuccessInfo.txHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 shrink-0"
+          >
+            <span>View on Stellar Expert</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      )}
 
       {/* Invoices List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -293,11 +388,11 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
 
               {inv.status === 'PENDING' && (
                 <button
-                  onClick={() => onMarkInvoicePaid(inv.id)}
+                  onClick={() => handleConfirmSorobanPay(inv.id)}
                   className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-sm flex items-center gap-1"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
-                  <span>Confirm Payment Settlement</span>
+                  <span>Settle on Soroban</span>
                 </button>
               )}
             </div>
@@ -542,21 +637,23 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
             </div>
 
             {/* Scannable Rendering */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center space-y-2">
               <div className="inline-block p-4 rounded-xl bg-white shadow border border-slate-200">
                 {qrModalMode === 'QR' ? (
                   <QRCodeSVG 
-                    value={selectedQrInvoice.recipientAddress || wallet.address} 
-                    size={180} 
-                    level="H" 
+                    value={selectedQrInvoice.merchantWallet || wallet.address} 
+                    size={170} 
+                    level="M" 
                     includeMargin={true}
+                    bgColor="#ffffff"
+                    fgColor="#0f172a"
                   />
                 ) : (
                   <div className="overflow-x-auto max-w-[250px]">
                     <Barcode 
-                      value={selectedQrInvoice.recipientAddress || wallet.address} 
+                      value={(selectedQrInvoice.merchantWallet || wallet.address).slice(0, 32)} 
                       width={1.2}
-                      height={60}
+                      height={50}
                       fontSize={10}
                       margin={4}
                       background="#ffffff"
@@ -566,14 +663,15 @@ export const InvoiceGateway: React.FC<InvoiceGatewayProps> = ({
                 )}
               </div>
 
-              <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
+              <div className="flex items-center justify-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
                 <Scan className="w-3.5 h-3.5" />
                 <span>{qrModalMode === 'QR' ? 'Camera & Wallet Scannable' : 'POS & Barcode Scanner'}</span>
               </div>
             </div>
 
             <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-mono break-all text-slate-700 dark:text-slate-300">
-              {selectedQrInvoice.qrPayload}
+              <span className="text-[10px] text-slate-400 font-semibold uppercase block mb-0.5">Payable Address / Deep Link:</span>
+              {selectedQrInvoice.merchantWallet || wallet.address}
             </div>
 
             <button

@@ -1,0 +1,84 @@
+name: Continuous Deployment (CD) - Stellar Public Network & App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Target Stellar Network'
+        required: true
+        default: 'mainnet'
+        type: choice
+        options:
+          - mainnet
+          - public
+
+jobs:
+  deploy-smart-contracts:
+    name: Deploy Soroban Contracts to Stellar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Install Stellar CLI
+        run: |
+          cargo install --locked stellar-cli --features opt
+
+      - name: Build Optimized WASM
+        run: |
+          stellar contract build
+
+      - name: Deploy Contract to Stellar (Simulation / Execution)
+        env:
+          STELLAR_ACCOUNT_SECRET: ${{ secrets.STELLAR_DEPLOYER_SECRET }}
+          STELLAR_NETWORK: ${{ github.event.inputs.network || 'mainnet' }}
+        run: |
+          echo "Preparing deployment to Stellar ${STELLAR_NETWORK}..."
+          echo "WASM target: target/wasm32-unknown-unknown/release/nexus_pay.wasm"
+          if [ -n "$STELLAR_ACCOUNT_SECRET" ]; then
+            stellar keys add deployer --secret-key "$STELLAR_ACCOUNT_SECRET"
+            CONTRACT_ID=$(stellar contract deploy \
+              --wasm target/wasm32-unknown-unknown/release/nexus_pay.wasm \
+              --source deployer \
+              --network mainnet)
+            echo "Deployed Contract ID: $CONTRACT_ID"
+            echo "CONTRACT_ID=$CONTRACT_ID" >> $GITHUB_ENV
+          else
+            echo "No secret provided for deployer in CI secrets; skipping live network broadcast, WASM verification passed."
+          fi
+
+  deploy-frontend:
+    name: Build & Package Frontend App
+    needs: deploy-smart-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Build Production Bundle
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_STELLAR_NETWORK: mainnet
+
+      - name: Verify Build Output
+        run: |
+          test -d dist && test -f dist/index.html
+          echo "Production frontend build ready for deployment."

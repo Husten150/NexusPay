@@ -90,3 +90,11 @@ export function convertUsdToCoin(symbol: string, amountUsd: number): number {
   if (info.priceUsd <= 0) return amountUsd;
   return amountUsd / info.priceUsd;
 }
+
+export function calculateTotalWalletUsd(tokenBalances: Record<string, number>): number {
+  if (!tokenBalances) return 0;
+  return Object.entries(tokenBalances).reduce((total, [symbol, amount]) => {
+    const info = getCoinInfo(symbol);
+    return total + (Number(amount) || 0) * (info.priceUsd || 0);
+  }, 0);
+}

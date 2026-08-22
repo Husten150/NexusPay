@@ -5,13 +5,15 @@ import {
   Wallet, 
   ChevronDown, 
   Zap, 
-  Send,
-  ArrowDownLeft,
-  Bot,
-  User,
-  KeyRound,
-  LogIn,
-  Download
+  Send, 
+  ArrowDownLeft, 
+  Bot, 
+  User, 
+  KeyRound, 
+  LogIn, 
+  Download,
+  RefreshCw,
+  CreditCard
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -20,6 +22,8 @@ interface NavbarProps {
   onOpenWalletModal: () => void;
   onOpenTransferModal: () => void;
   onOpenReceiveModal: () => void;
+  onOpenSwapModal?: () => void;
+  onOpenBuyModal?: () => void;
   onOpenAuthModal: () => void;
   onOpenPwaModal?: () => void;
   onNavigateHome?: () => void;
@@ -47,6 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenWalletModal,
   onOpenTransferModal,
   onOpenReceiveModal,
+  onOpenSwapModal,
+  onOpenBuyModal,
   onOpenAuthModal,
   onOpenPwaModal,
   onNavigateHome,
@@ -91,15 +97,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </button>
 
-        {/* Center Actions: Transfer & Receive Money Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Center Actions: Transfer, Receive, Swap & Buy Buttons */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={onOpenTransferModal}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
           >
             <Send className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Transfer Money</span>
-            <span className="sm:hidden">Send</span>
+            <span className="hidden md:inline">Transfer Money</span>
+            <span className="md:hidden">Send</span>
           </button>
 
           <button
@@ -107,9 +113,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
           >
             <ArrowDownLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Receive</span>
-            <span className="sm:hidden">Receive</span>
+            <span>Receive</span>
           </button>
+
+          {onOpenSwapModal && (
+            <button
+              onClick={onOpenSwapModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
+              title="Swap Tokens"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Swap</span>
+            </button>
+          )}
+
+          {onOpenBuyModal && (
+            <button
+              onClick={onOpenBuyModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-sm transition-all active:scale-95"
+              title="Buy Crypto with Fiat"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-slate-950" />
+              <span className="hidden sm:inline">Buy</span>
+            </button>
+          )}
         </div>
 
         {/* Right Actions: Network Selector & Connect Wallet */}

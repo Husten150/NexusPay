@@ -28,6 +28,10 @@ export interface UserAccount {
   kycStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED';
   bankAccount?: BankAccountDetails;
   passwordHash?: string;
+  authProvider?: 'EMAIL_PASSWORD' | 'GOOGLE' | 'WEBAUTHN';
+  googleId?: string;
+  avatarUrl?: string;
+  isGoogleVerified?: boolean;
   secretRecoveryCode: string;
   isRecoveryKeyBackedUp: boolean;
   biometricRegistered?: boolean;
@@ -137,15 +141,39 @@ export interface YieldPosition {
   status: 'ACTIVE' | 'WITHDRAWN';
 }
 
+export type TransactionCategory = 
+  | 'SENT'
+  | 'RECEIVED'
+  | 'PENDING'
+  | 'SWAP'
+  | 'BUY'
+  | 'STREAM_EXEC'
+  | 'INVOICE_PAYMENT'
+  | 'TREASURY_REBALANCE'
+  | 'REMITTANCE'
+  | 'SECURITY_BLOCK';
+
 export interface TransactionAuditLog {
   id: string;
   timestamp: string;
   txHash: string;
-  type: 'STREAM_EXEC' | 'INVOICE_PAYMENT' | 'TREASURY_REBALANCE' | 'REMITTANCE' | 'SECURITY_BLOCK';
+  type: 'STREAM_EXEC' | 'INVOICE_PAYMENT' | 'TREASURY_REBALANCE' | 'REMITTANCE' | 'SECURITY_BLOCK' | 'TRANSFER_SEND' | 'TRANSFER_RECEIVE' | 'SWAP' | 'BUY_CRYPTO';
+  category?: 'SENT' | 'RECEIVED' | 'PENDING' | 'SWAP' | 'BUY';
   summary: string;
   amountUsd: number;
+  token?: string;
+  cryptoAmount?: number;
+  fromToken?: string;
+  toToken?: string;
+  fromAmount?: number;
+  toAmount?: number;
+  fiatAmount?: number;
+  fiatCurrency?: string;
+  paymentMethod?: string;
+  senderAddress?: string;
+  recipientAddress?: string;
   chain: SupportedChain;
-  status: 'CONFIRMED' | 'PENDING' | 'BLOCKED';
+  status: 'CONFIRMED' | 'PENDING' | 'BLOCKED' | 'FAILED';
   gasFeeUsd: number;
   aiRiskLevel: 'SAFE' | 'WARNING' | 'CRITICAL';
 }

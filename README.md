@@ -36,10 +36,10 @@
 * **One-Click Installer**: Built-in PWA installation modal with native Chrome, Edge, and iOS Safari step-by-step setup guides.
 * **Offline Service Worker Caching**: Instant launch and offline capability.
 
-### 5. ⚡ Real-Time On-Chain Transfers & Faucet
-* **Instant Money Transfers**: Real-time signature prompts with direct block explorer transaction tracking (**Etherscan**, **Polygonscan**, **Basescan**, **Arbiscan**, **Solscan**).
-* **Receive Funds & Live Listener**: QR code modal with address copying and an active WebSocket on-chain deposit listener.
-* **Testnet Faucet**: One-click claim of `+$10,000 USDC` sandbox tokens for instant testing.
+### 5. ⚡ Real-Time On-Chain Transfers & Settlement
+* **Instant Money Transfers**: Real-time signature prompts with direct block explorer transaction tracking (**Stellar Expert**, **Etherscan**, **Polygonscan**, **Basescan**, **Arbiscan**, **Solscan**).
+* **Receive Funds & Live Listener**: QR code modal with address copying and an active live on-chain deposit listener.
+* **Direct Multi-Asset Balance**: Native instant balances for USDC, EURC, XLM, ETH, and major crypto assets.
 
 ### 6. 🌊 Real-Time Payment Streaming Payroll
 * **Per-Second Token Streaming**: Sablier/Superfluid-style real-time micro-payments for global contractors and employees.

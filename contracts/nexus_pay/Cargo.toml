@@ -1,0 +1,15 @@
+[package]
+name = "nexus_pay"
+version = "0.1.0"
+edition = "2021"
+authors = ["NexusPay Team <dev@nexuspay.io>"]
+description = "Soroban Smart Contract for NexusPay Treasury, Payment Streaming, Invoicing, Staking and Cross-Border Remittance"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+soroban-sdk = { version = "22.0.0" }
+
+[dev-dependencies]
+soroban-sdk = { version = "22.0.0", features = ["testutils"] }

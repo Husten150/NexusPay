@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
 import { WalletState, SupportedChain } from '../types';
 import { ALL_COINS, getCoinsForChain } from '../data/coinCatalog';
-import { getChainAddress } from '../utils/chainAddress';
+import { getChainAddress, generatePaymentUri, validateAddressForChain } from '../utils/chainAddress';
 import { 
   ArrowDownLeft, 
   Copy, 
@@ -17,7 +17,9 @@ import {
   CheckCircle2, 
   Sparkles,
   RefreshCw,
-  Barcode as BarcodeIcon
+  Barcode as BarcodeIcon,
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 
 interface ReceiveModalProps {
@@ -37,6 +39,8 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(wallet.chain);
   const [selectedToken, setSelectedToken] = useState<string>('USDC');
   const [codeType, setCodeType] = useState<'QR' | 'BARCODE'>('QR');
+  const [qrFormat, setQrFormat] = useState<'RAW' | 'URI'>('RAW');
+  const [customAmount, setCustomAmount] = useState<string>('');
   
   // Simulation for live socket incoming payment test
   const [simulatingIncoming, setSimulatingIncoming] = useState(false);
@@ -44,6 +48,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
 
   // Get active network address matching the selected chain format (Solana, Bitcoin, EVM, Tron, Stellar)
   const activeAddress = getChainAddress(selectedChain, wallet.address);
+  const addressValidation = validateAddressForChain(selectedChain, activeAddress);
 
   // Available coins specifically on the selected target network
   const availableCoins = getCoinsForChain(selectedChain);
@@ -59,7 +64,10 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
   if (!isOpen) return null;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(activeAddress);
+    const textToCopy = qrFormat === 'URI' 
+      ? generatePaymentUri(selectedChain, activeAddress, selectedToken, parseFloat(customAmount) || undefined)
+      : activeAddress;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -69,15 +77,17 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
     setReceivedNotification(null);
 
     setTimeout(() => {
-      const randomAmount = Math.floor(Math.random() * 500) + 100;
+      const randomAmount = parseFloat(customAmount) || (Math.floor(Math.random() * 500) + 100);
       onReceiveFunds(randomAmount, selectedToken, activeAddress);
       setSimulatingIncoming(false);
       setReceivedNotification(`Received +${randomAmount} ${selectedToken} on ${selectedChain}!`);
     }, 1800);
   };
 
-  // Build real scannable payload URI - Raw active network address for 100% universal wallet compatibility
-  const qrUri = activeAddress;
+  // Build real scannable payload URI
+  const rawQrValue = qrFormat === 'URI'
+    ? generatePaymentUri(selectedChain, activeAddress, selectedToken, parseFloat(customAmount) || undefined)
+    : activeAddress;
 
   return (
     <div 
@@ -86,7 +96,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[360px] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-4 space-y-3 animate-in zoom-in-95 duration-150 cursor-default max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-[380px] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-4 space-y-3 animate-in zoom-in-95 duration-150 cursor-default max-h-[94vh] overflow-y-auto"
       >
         
         {/* Header */}
@@ -96,11 +106,14 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
               <ArrowDownLeft className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Receive Funds
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span>Receive Funds</span>
+                <span className="px-1.5 py-0.2 text-[9px] rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-semibold">
+                  Live
+                </span>
               </h3>
               <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                Scannable QR & Barcode
+                Camera & Wallet Scannable QR Code
               </p>
             </div>
           </div>
@@ -120,17 +133,17 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
               onChange={(e) => setSelectedChain(e.target.value as SupportedChain)}
               className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-lg px-2 py-1.5 border border-slate-200 dark:border-slate-700 focus:outline-none text-xs"
             >
-              <option value="Polygon">Polygon</option>
-              <option value="Base">Base L2</option>
-              <option value="Ethereum">Ethereum</option>
-              <option value="Arbitrum">Arbitrum</option>
-              <option value="Optimism">Optimism</option>
+              <option value="Polygon">Polygon (EVM)</option>
+              <option value="Base">Base L2 (EVM)</option>
+              <option value="Ethereum">Ethereum (EVM)</option>
+              <option value="Arbitrum">Arbitrum (EVM)</option>
+              <option value="Optimism">Optimism (EVM)</option>
               <option value="Solana">Solana</option>
               <option value="BNB Chain">BNB Chain</option>
               <option value="Avalanche">Avalanche</option>
               <option value="Tron">Tron</option>
               <option value="Bitcoin Network">Bitcoin</option>
-              <option value="Stellar Network">Stellar</option>
+              <option value="Stellar Network">Stellar Public Network</option>
             </select>
           </div>
 
@@ -152,50 +165,52 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
           </div>
         </div>
 
-        {/* Toggle between 2D QR Code & 1D Barcode */}
-        <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-[11px] font-bold">
-          <button
-            onClick={() => setCodeType('QR')}
-            className={`flex-1 py-1 rounded-md flex items-center justify-center gap-1 transition-all ${
-              codeType === 'QR' 
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <QrCode className="w-3 h-3" />
-            <span>2D QR</span>
-          </button>
-          
-          <button
-            onClick={() => setCodeType('BARCODE')}
-            className={`flex-1 py-1 rounded-md flex items-center justify-center gap-1 transition-all ${
-              codeType === 'BARCODE' 
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <BarcodeIcon className="w-3 h-3" />
-            <span>1D Barcode</span>
-          </button>
+        {/* QR Code Format Toggle: Raw Address vs Payment URI */}
+        <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg text-[10px]">
+          <span className="text-slate-500 dark:text-slate-400 font-medium px-1">QR Format:</span>
+          <div className="flex gap-1 font-semibold">
+            <button
+              onClick={() => setQrFormat('RAW')}
+              className={`px-2 py-0.5 rounded transition-all ${
+                qrFormat === 'RAW'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Universal Address
+            </button>
+            <button
+              onClick={() => setQrFormat('URI')}
+              className={`px-2 py-0.5 rounded transition-all ${
+                qrFormat === 'URI'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Payment URI
+            </button>
+          </div>
         </div>
 
-        {/* Real Scannable QR Code or Barcode Display */}
+        {/* Real Scannable QR Code Display */}
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center space-y-2">
           
-          <div className="inline-block p-2.5 rounded-xl bg-white shadow-sm border border-slate-200">
+          <div className="inline-block p-3 rounded-xl bg-white shadow-sm border border-slate-200">
             {codeType === 'QR' ? (
               <QRCodeSVG 
-                value={qrUri} 
-                size={130} 
-                level="H"
+                value={rawQrValue} 
+                size={140} 
+                level="M"
                 includeMargin={true}
+                bgColor="#ffffff"
+                fgColor="#0f172a"
               />
             ) : (
               <div className="overflow-x-auto max-w-[240px]">
                 <Barcode 
-                  value={activeAddress} 
-                  width={1.0}
-                  height={40}
+                  value={activeAddress.slice(0, 32)} 
+                  width={1.1}
+                  height={45}
                   fontSize={9}
                   margin={2}
                   background="#ffffff"
@@ -205,36 +220,77 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
-            <Scan className="w-3 h-3" />
-            <span>{codeType === 'QR' ? 'Scannable QR Code' : 'Barcode Reader Scannable'}</span>
+          {/* Validation Status Badge */}
+          <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
+            {addressValidation.isValid ? (
+              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Verified Valid {selectedChain} Public Address</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-amber-500">
+                <span>{addressValidation.reason}</span>
+              </div>
+            )}
           </div>
 
           <div>
             <span className="text-[9px] text-slate-400 font-mono uppercase tracking-wider block">
-              Address ({selectedChain}):
+              Public Address ({selectedChain}):
             </span>
-            <div className="font-mono text-[11px] font-bold text-slate-800 dark:text-slate-100 break-all bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 mt-0.5 select-all">
+            <div className="font-mono text-[10px] font-bold text-slate-800 dark:text-slate-100 break-all bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 mt-0.5 select-all">
               {activeAddress}
             </div>
           </div>
 
+          {qrFormat === 'URI' && (
+            <div className="text-[9px] text-slate-400 font-mono break-all text-left bg-slate-100 dark:bg-slate-900/90 p-1.5 rounded border border-slate-200 dark:border-slate-800">
+              <span className="font-semibold text-slate-500 block">QR Payload:</span>
+              {rawQrValue}
+            </div>
+          )}
+
           <button
             onClick={handleCopy}
-            className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
+            className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-98"
           >
             {copied ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Copied Address!</span>
+                <span>Copied to Clipboard!</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                <span>Copy Address</span>
+                <span>Copy {qrFormat === 'URI' ? 'Payment Link' : 'Public Address'}</span>
               </>
             )}
           </button>
+
+          {/* Quick Incoming Payment Tester */}
+          <button
+            onClick={handleTestIncomingPayment}
+            disabled={simulatingIncoming}
+            className="w-full py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-[11px] transition-all flex items-center justify-center gap-1.5"
+          >
+            {simulatingIncoming ? (
+              <>
+                <RefreshCw className="w-3 h-3 animate-spin text-indigo-500" />
+                <span>Listening for on-chain incoming tx...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3 h-3 text-amber-500" />
+                <span>Simulate Incoming Deposit to this Address</span>
+              </>
+            )}
+          </button>
+
+          {receivedNotification && (
+            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold animate-in fade-in">
+              {receivedNotification}
+            </div>
+          )}
 
         </div>
 

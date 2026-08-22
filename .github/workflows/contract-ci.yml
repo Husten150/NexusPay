@@ -1,0 +1,79 @@
+name: Soroban Smart Contract CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'contracts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/contract-ci.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'contracts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/contract-ci.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  test-and-lint:
+    name: Test & Lint Soroban Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./Cargo.toml -> target"
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy Linter
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Unit & Integration Tests
+        run: cargo test --workspace --all-targets --verbose
+
+  build-wasm:
+    name: Build Soroban WASM Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Build Contract WASM
+        run: |
+          cargo build --target wasm32-unknown-unknown --release --workspace
+
+      - name: Verify WASM Output
+        run: |
+          ls -la target/wasm32-unknown-unknown/release/*.wasm
+          echo "Soroban WASM successfully built and verified."
+
+      - name: Upload Contract WASM Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: soroban-contracts-wasm
+          path: target/wasm32-unknown-unknown/release/*.wasm
+          if-no-files-found: warn

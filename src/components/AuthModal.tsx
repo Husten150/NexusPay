@@ -23,6 +23,8 @@ import {
   Wallet,
   QrCode,
   ArrowLeft,
+  ArrowRight,
+  UserPlus,
   Zap,
   Phone,
   FileText,
@@ -68,6 +70,27 @@ export const generateSecretCode = (): { mnemonic: string; formattedCode: string 
   const formattedCode = `NEXUS-KEY-${hexPart.toUpperCase()}`;
   return { mnemonic, formattedCode };
 };
+
+export const GoogleIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
 
 export const generateRandomWalletAddress = (): string => {
   const chars = '0123456789abcdefABCDEF';
@@ -174,6 +197,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Status messages
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Google OAuth SSO State
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+  const [customGoogleName, setCustomGoogleName] = useState('');
+  const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
 
   // Live 30s Google Authenticator refresh countdown timer
   useEffect(() => {
@@ -293,6 +323,82 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setProfileSuccessMsg('✓ Profile, Location Identity KYC, Facial Scan, Withdrawal PIN & Bank Account updated!');
       setTimeout(() => setProfileSuccessMsg(null), 4000);
     }, 350);
+  };
+
+  // Google OAuth SSO Sign-in / Sign-up Handler
+  const handleGoogleSignIn = (targetEmail?: string, targetName?: string, avatarUrl?: string) => {
+    setIsGoogleProcessing(true);
+    setErrorMessage(null);
+
+    const email = (targetEmail || customGoogleEmail || 'hustenisama@gmail.com').trim().toLowerCase();
+    const name = (targetName || customGoogleName || email.split('@')[0]).trim();
+
+    if (!email || !email.includes('@')) {
+      setIsGoogleProcessing(false);
+      setErrorMessage('Please provide a valid Google email address.');
+      return;
+    }
+
+    // Retrieve saved user accounts from localStorage
+    const savedUsersRaw = localStorage.getItem('nexuspay_users');
+    let usersList: UserAccount[] = [];
+    if (savedUsersRaw) {
+      try { usersList = JSON.parse(savedUsersRaw); } catch (err) {}
+    }
+
+    setTimeout(() => {
+      // Find matching user or generate user account
+      const matchedIndex = usersList.findIndex(
+        (u) => u.email.toLowerCase() === email.toLowerCase()
+      );
+
+      let finalUser: UserAccount;
+
+      if (matchedIndex >= 0) {
+        // User exists, update with Google auth metadata
+        const existing = usersList[matchedIndex];
+        finalUser = {
+          ...existing,
+          authProvider: 'GOOGLE',
+          isGoogleVerified: true,
+          fullName: existing.fullName || name,
+          avatarUrl: existing.avatarUrl || avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+          lastLoginAt: new Date().toISOString(),
+        };
+        usersList[matchedIndex] = finalUser;
+      } else {
+        // Create new user account with Google Identity
+        const usernameFromEmail = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+        const recoveryObj = generateSecretCode();
+        finalUser = {
+          id: `usr-google-${Date.now()}`,
+          username: usernameFromEmail || 'google_user',
+          email: email,
+          fullName: name || usernameFromEmail,
+          authProvider: 'GOOGLE',
+          isGoogleVerified: true,
+          googleId: `google-sub-${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+          avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+          secretRecoveryCode: recoveryObj.formattedCode,
+          isRecoveryKeyBackedUp: true,
+          biometricRegistered: true,
+          walletAddress: generateRandomWalletAddress(),
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+          kycStatus: 'UNVERIFIED',
+        };
+        usersList.push(finalUser);
+      }
+
+      try {
+        localStorage.setItem('nexuspay_users', JSON.stringify(usersList));
+      } catch (err) {}
+
+      setIsGoogleProcessing(false);
+      setShowGoogleModal(false);
+      setSuccessMessage(`✓ Successfully authenticated with Google as ${email}!`);
+      onLoginSuccess(finalUser);
+    }, 450);
   };
 
   // 1. STEP ONE: LOGIN WITH EMAIL & PASSWORD -> PROMPTS GOOGLE AUTHENTICATOR
@@ -703,6 +809,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                   </button>
                 </div>
+
+                {/* Authentication Provider / Google SSO Card */}
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm">
+                      <GoogleIcon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-white text-[11px] flex items-center gap-1.5">
+                        <span>{authState.user.authProvider === 'GOOGLE' || authState.user.isGoogleVerified ? 'Google SSO Account' : 'Google Auth Link'}</span>
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                          authState.user.authProvider === 'GOOGLE' || authState.user.isGoogleVerified
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        }`}>
+                          {authState.user.authProvider === 'GOOGLE' || authState.user.isGoogleVerified ? 'VERIFIED' : 'AVAILABLE'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono truncate">
+                        {authState.user.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!(authState.user.authProvider === 'GOOGLE' || authState.user.isGoogleVerified) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowGoogleModal(true)}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-900 font-bold text-[10px] shadow transition-all shrink-0 cursor-pointer"
+                    >
+                      Connect Google
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* PROFILE & KYC VERIFICATION FORM */}
@@ -1056,7 +1196,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* VIEW 2: SIGN IN FORM (EMAIL & PASSWORD ONLY) */}
           {!authState.isAuthenticated && mode === 'LOGIN' && (
-            <form onSubmit={handleLoginSubmit} className="space-y-3.5 animate-in fade-in duration-150">
+            <div className="space-y-3.5 animate-in fade-in duration-150">
+              
+              {/* Google OAuth Single Sign-On Button */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage(null);
+                    setShowGoogleModal(true);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 shadow-md border border-slate-300 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <GoogleIcon className="w-4 h-4 shrink-0" />
+                  <span>Sign in with Google</span>
+                </button>
+
+                <div className="flex items-center gap-3 my-2.5">
+                  <div className="flex-1 h-px bg-slate-800"></div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">or sign in with email</span>
+                  <div className="flex-1 h-px bg-slate-800"></div>
+                </div>
+              </div>
+
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
               
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
@@ -1131,6 +1294,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </form>
+          </div>
           )}
 
           {/* VIEW 3: GOOGLE AUTHENTICATOR 2FA STEP */}
@@ -1254,7 +1418,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* VIEW 4: QUICK CREATE ACCOUNT SIGNUP FORM */}
           {!authState.isAuthenticated && mode === 'SIGNUP' && (
-            <form onSubmit={handleSignupSubmit} className="space-y-3.5 animate-in fade-in duration-150">
+            <div className="space-y-3.5 animate-in fade-in duration-150">
+              
+              {/* Google OAuth Single Sign-Up Button */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage(null);
+                    setShowGoogleModal(true);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 shadow-md border border-slate-300 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <GoogleIcon className="w-4 h-4 shrink-0" />
+                  <span>Sign up with Google (Instant 1-Click)</span>
+                </button>
+
+                <div className="flex items-center gap-3 my-2.5">
+                  <div className="flex-1 h-px bg-slate-800"></div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">or sign up with email</span>
+                  <div className="flex-1 h-px bg-slate-800"></div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSignupSubmit} className="space-y-3.5">
               
               {/* Header Info Banner */}
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
@@ -1416,6 +1603,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </form>
+          </div>
           )}
 
           {/* VIEW 5: RECOVERY FORM */}
@@ -1478,6 +1666,167 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
       </div>
+
+      {/* GOOGLE SSO ACCOUNT CHOOSER DIALOG OVERLAY */}
+      {showGoogleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150 text-slate-100">
+            
+            {/* Google Header */}
+            <div className="p-5 text-center border-b border-slate-800 bg-slate-950/80">
+              <div className="mx-auto w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md mb-2.5">
+                <GoogleIcon className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-white tracking-tight">
+                Sign in with Google
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Choose an account to continue to <strong className="text-indigo-400">NexusPay Enterprise</strong>
+              </p>
+            </div>
+
+            {/* Account List & Options */}
+            <div className="p-4 space-y-2.5 max-h-80 overflow-y-auto">
+              {isGoogleProcessing ? (
+                <div className="py-8 flex flex-col items-center justify-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
+                  <p className="text-xs font-semibold text-slate-300">
+                    Authenticating with Google Identity...
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Account 1: Preset Account */}
+                  <button
+                    type="button"
+                    onClick={() => handleGoogleSignIn('hustenisama@gmail.com', 'Husten Isama')}
+                    className="w-full p-3 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 transition-all flex items-center gap-3 text-left group cursor-pointer"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-indigo-600 font-bold text-white flex items-center justify-center text-xs shrink-0 shadow ring-1 ring-indigo-400/30 group-hover:scale-105 transition-transform">
+                      H
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors flex items-center gap-1.5">
+                        <span>Husten Isama</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">Google</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono truncate">
+                        hustenisama@gmail.com
+                      </div>
+                    </div>
+                    <div className="text-slate-500 group-hover:text-white">
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </button>
+
+                  {/* Account 2: Any previously logged in accounts from localStorage */}
+                  {(() => {
+                    try {
+                      const raw = localStorage.getItem('nexuspay_users');
+                      if (!raw) return null;
+                      const list: UserAccount[] = JSON.parse(raw);
+                      const otherUsers = list.filter(u => u.email.toLowerCase() !== 'hustenisama@gmail.com');
+                      if (otherUsers.length === 0) return null;
+                      return otherUsers.slice(0, 2).map(u => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => handleGoogleSignIn(u.email, u.fullName || u.username, u.avatarUrl)}
+                          className="w-full p-3 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 transition-all flex items-center gap-3 text-left group cursor-pointer"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-emerald-600 font-bold text-white flex items-center justify-center text-xs shrink-0 shadow ring-1 ring-emerald-400/30 group-hover:scale-105 transition-transform">
+                            {u.username.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-xs text-white group-hover:text-emerald-300 transition-colors">
+                              {u.fullName || u.username}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono truncate">
+                              {u.email}
+                            </div>
+                          </div>
+                          <div className="text-slate-500 group-hover:text-white">
+                            <ArrowRight className="w-4 h-4" />
+                          </div>
+                        </button>
+                      ));
+                    } catch (e) {
+                      return null;
+                    }
+                  })()}
+
+                  {/* Toggle Custom Account Entry */}
+                  {!showCustomGoogleInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomGoogleInput(true)}
+                      className="w-full p-2.5 rounded-xl border border-dashed border-slate-700 hover:border-indigo-500/50 hover:bg-slate-950/60 text-slate-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Use another Google account</span>
+                    </button>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 animate-in fade-in">
+                      <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                        <span>Enter Google Account Details</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomGoogleInput(false)}
+                          className="text-[10px] text-slate-500 hover:text-slate-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <input
+                        type="email"
+                        value={customGoogleEmail}
+                        onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                        placeholder="your.email@gmail.com"
+                        className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-700 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                      />
+                      <input
+                        type="text"
+                        value={customGoogleName}
+                        onChange={(e) => setCustomGoogleName(e.target.value)}
+                        placeholder="Display Name (e.g. Alex Vance)"
+                        className="w-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 border border-slate-700 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleGoogleSignIn()}
+                        disabled={!customGoogleEmail.includes('@')}
+                        className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow transition-all disabled:opacity-50"
+                      >
+                        Continue with this Account
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Google Terms Footer */}
+            <div className="p-3.5 border-t border-slate-800 bg-slate-950/60 text-[10px] text-slate-500 leading-relaxed">
+              To continue, Google will share your name, email address, language preference, and profile picture with NexusPay Enterprise.
+            </div>
+
+            {/* Cancel Button */}
+            <div className="p-3 bg-slate-950 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGoogleModal(false);
+                  setShowCustomGoogleInput(false);
+                }}
+                className="px-4 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

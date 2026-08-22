@@ -367,7 +367,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                     </span>
                   </h3>
                   <p className="text-slate-500 text-xs">
-                    Cryptographic proofs of wallet interactions on Stellar testnet & partner networks.
+                    Cryptographic proofs of wallet interactions on Stellar Public Network & partner networks.
                   </p>
                 </div>
 
@@ -502,7 +502,7 @@ export const SubmissionHubModal: React.FC<SubmissionHubModalProps> = ({
                     value={feedbackComment}
                     onChange={(e) => setFeedbackComment(e.target.value)}
                     rows={2}
-                    placeholder="Share your experience using NexusPay on Stellar testnet..."
+                    placeholder="Share your experience using NexusPay on Stellar Public Network..."
                     className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-xl p-3 border border-slate-300 dark:border-slate-700"
                   />
                 </div>

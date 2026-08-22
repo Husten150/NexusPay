@@ -150,7 +150,7 @@ export const PwaInstallModal: React.FC<PwaInstallModalProps> = ({ isOpen, onClos
 
               <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                 <span className="font-bold text-emerald-300 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secure Sandbox
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secure Vault
                 </span>
                 <p className="text-[10px] text-slate-400">Encrypted local keys and WebAuthn biometric security.</p>
               </div>
